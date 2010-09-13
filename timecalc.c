@@ -18,6 +18,7 @@
 #define DEBUG_UTC 1
 #define DEBUG_UTCPLUS 0
 #define DEBUG_BST 1
+#define DEBUG_REBASED 1
 
 #define ONE_MILLION 1000000
 #define ONE_BILLION (ONE_MILLION * 1000)
@@ -354,13 +355,6 @@ static timecalc_zone_t s_system_utcplus =
 static int bst_init(struct timecalc_zone_struct *self,
 		    int iarg, void *parg);
 
-#if 0
-static int system_bst_diff(struct timecalc_zone_struct *self,
-			   timecalc_interval_t *ival,
-			   const timecalc_calendar_t *before,
-			   const timecalc_calendar_t *after);
-#endif
-
 static int system_bst_offset(struct timecalc_zone_struct *self,
 			     timecalc_calendar_t *offset,
 			     const timecalc_calendar_t *src);
@@ -395,6 +389,59 @@ static timecalc_zone_t s_system_bst =
     system_bst_epoch,
     system_bst_lower_zone
   };
+
+/* -------------------------- Rebase ------------------- */
+
+
+static int system_rebased_init(struct timecalc_zone_struct *self,
+			       int argi,
+			       void *argn);
+
+static int system_rebased_dispose(struct timecalc_zone_struct *self);
+
+static int system_rebased_offset(struct timecalc_zone_struct *self,
+			      timecalc_calendar_t *offset,
+			      const timecalc_calendar_t *src);
+
+static int system_rebased_aux(struct timecalc_zone_struct *self,
+			   const timecalc_calendar_t *calc,
+			   timecalc_calendar_aux_t *aux);
+
+static int system_rebased_op(struct timecalc_zone_struct *self,
+			   timecalc_calendar_t *dest,
+			   const timecalc_calendar_t *src,
+			   const timecalc_calendar_t *offset, 
+			   int op);
+
+
+static int system_rebased_epoch(struct timecalc_zone_struct *self,
+			     timecalc_calendar_t *aux);
+
+static int system_rebased_lower_zone(struct timecalc_zone_struct *self,
+				  struct timecalc_zone_struct **next);
+
+// The handle in a rebased zone is actually quite complex..
+typedef struct timecalc_rebased_handle_struct
+{
+  timecalc_zone_t *lower;
+  timecalc_calendar_t offset;
+} timecalc_rebased_handle_t;
+
+
+static timecalc_zone_t s_system_rebased = 
+  {
+    NULL,
+    TIMECALC_SYSTEM_REBASED,
+    system_rebased_init,
+    system_rebased_dispose,
+    system_lower_diff,
+    system_rebased_offset,
+    system_rebased_op,
+    system_rebased_aux,
+    system_rebased_epoch,
+    system_rebased_lower_zone
+  };
+
 
 /** Do knockdown of a DST difference by an offset, as required for a complex
  *  add 
@@ -490,6 +537,9 @@ int timecalc_zone_new(int system,
     case TIMECALC_SYSTEM_BST:
       prototype = &s_system_bst;
       break;
+    case TIMECALC_SYSTEM_REBASED:
+      prototype = &s_system_rebased;
+      break;
     }
   if (prototype == NULL)
     {
@@ -527,6 +577,14 @@ int timecalc_zone_dispose(timecalc_zone_t **io_zone)
     free(t);
   }
   (*io_zone) = NULL;
+  return rv;
+}
+
+int timecalc_tai_new(timecalc_zone_t **ozone)
+{
+  int rv;
+  
+  rv = timecalc_zone_new(TIMECALC_SYSTEM_GREGORIAN_TAI, ozone, 0, NULL);
   return rv;
 }
 
@@ -713,7 +771,6 @@ const char *timecalc_describe_system(const int sys)
     }
 
 
-
   if (system >= TIMECALC_SYSTEM_UTCPLUS_BASE && 
       system <= (TIMECALC_SYSTEM_UTCPLUS_BASE + 1440))
     {
@@ -743,6 +800,9 @@ const char *timecalc_describe_system(const int sys)
       break;
     case TIMECALC_SYSTEM_BST:
       sprintf(buf, "BST%s", modifier);
+      break;
+    case (TIMECALC_SYSTEM_REBASED & ~TIMECALC_SYSTEM_TAINTED):
+      sprintf(buf, "REBASED%s", modifier);
       break;
     default:
       return "UNKNOWN";
@@ -835,6 +895,40 @@ int timecalc_zone_raise(timecalc_zone_t *zone,
 
   printf("*** raised() dest = %s \n", dbg_pdate(dest));
   
+  return 0;
+}
+
+int timecalc_zone_lower_to(timecalc_zone_t *zone,
+			   timecalc_calendar_t *dest,
+			   timecalc_zone_t **lower,
+			   const timecalc_calendar_t *src, 
+			   int to_system)
+{
+  timecalc_calendar_t current;
+
+  memcpy(&current, src, sizeof(timecalc_calendar_t));
+  while (current.system != to_system)
+    {
+      timecalc_zone_t *l = NULL;
+      int rv;
+
+      rv = zone->lower_zone(zone, &l);
+      if (rv) 
+	{ return rv; }
+      if (!l) 
+	{
+	  return TIMECALC_ERR_CANNOT_CONVERT;
+	}
+      
+      rv = timecalc_zone_lower(zone, dest, &l, &current);
+      if (rv) { return rv; }
+      (*lower) = l;
+
+      // Otherwise ..
+      zone = l;
+      memcpy(&current, dest, sizeof(timecalc_calendar_t));
+    }
+
   return 0;
 }
 
@@ -945,7 +1039,10 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
    *  
    *  We're using the conventional 'spinning counter' algorithm
    *  here. This is gratuitously terrible.
+   *
    */
+
+  printf("---gtai_diff()\n");
 
   if (before->system != after->system) { return TIMECALC_ERR_SYSTEMS_DO_NOT_MATCH; }
   if (before->system != TIMECALC_SYSTEM_GREGORIAN_TAI) 
@@ -960,6 +1057,8 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
       if (rv) { return rv; }
       ivalp->s = -ivalp->s;
       ivalp->ns = -ivalp->ns;
+
+      return rv;
     }
 
   // Bring the interval onto the stack for manipulation
@@ -968,6 +1067,9 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
   timecalc_interval_t ival;
   memcpy(&ival, ivalp, sizeof(timecalc_interval_t));
 
+
+  printf("init: s = %lld ns = %ld \n", 
+	 ival.s, ival.ns);
   {
     int cur = before->month;
     int curday = before->mday;
@@ -1020,17 +1122,21 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
       }
   }
 
+  printf("ival.s = %lld\n", ival.s);
   {
     int hrdiff = after->hour - before->hour;
 
+    printf("hrdiff = %d \n", hrdiff);
     ival.s += SECONDS_PER_HOUR * hrdiff;
   }
 
   {
     int mdiff = after->minute - before->minute;
 
+    printf("mdiff = %d \n", mdiff);
     ival.s += SECONDS_PER_MINUTE *mdiff;
   }
+  printf("sdiff = %d \n", (after->second -before->second));
   ival.s += (after->second - before->second);
   ival.ns = (after->ns - before->ns);
   if (ival.ns < 0)
@@ -1040,6 +1146,7 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
     }
   
   memcpy(ivalp, &ival, sizeof(timecalc_interval_t));
+  printf("---end gtai_diff()\n");
 
   return 0;
 }
@@ -1662,37 +1769,6 @@ static int utc_plus_init(struct timecalc_zone_struct *self, int arg_i, void *arg
   return 0;
 }
 
-#if 0
-static int system_utcplus_diff(struct timecalc_zone_struct *self,
-			       timecalc_interval_t *ival,
-			       const timecalc_calendar_t *before,
-			       const timecalc_calendar_t *after)
-{
-  // This is pretty straightforward - convert both times to UTC and
-  // then subtract them.
-  timecalc_zone_t *utc = (timecalc_zone_t *)self->handle;
-  timecalc_zone_t *d;
-  timecalc_calendar_t b_utc, a_utc;
-  int rv;
-
-  if (before->system != self->system ||
-      after->system != self->system)
-    {
-      return TIMECALC_ERR_NOT_MY_SYSTEM;
-    }
-
-  rv = timecalc_zone_lower(self, &b_utc, &d, before);
-  if (rv) { return rv; }
-
-  rv = timecalc_zone_lower(self, &a_utc, &d, after);
-  if (rv) { return rv; }
-  
-  // Now we have two UTC times ..
-  return utc->diff(utc, ival, &b_utc, &a_utc);
-}
-#endif
-
-
 static int system_utcplus_offset(struct timecalc_zone_struct *self,
 				 timecalc_calendar_t *dest,
 				 const timecalc_calendar_t *src)
@@ -1719,6 +1795,8 @@ static int system_utcplus_aux(struct timecalc_zone_struct *self,
   return utc->aux(utc, calc, aux);
 }
 
+
+
 static int system_utcplus_op(struct timecalc_zone_struct *self,
 			     timecalc_calendar_t *dest,
 			     const timecalc_calendar_t *src,
@@ -1726,7 +1804,7 @@ static int system_utcplus_op(struct timecalc_zone_struct *self,
 			     int op)
 {
   timecalc_zone_t *utc = (timecalc_zone_t *)self->handle;
-
+  
   // This is actually pretty civilised. For all operations, we first
   // subtract the relevant number of hours and minutes. Then we perform
   // the operation. Then we add the hours and minutes again. Because
@@ -2073,6 +2151,146 @@ static int is_bst(struct timecalc_zone_struct *utc, const timecalc_calendar_t *c
 
 
   return TIMECALC_ERR_INTERNAL_ERROR;
+}
+
+/* --------------------------- rebased ------------------------ */
+
+int timecalc_rebased_new(timecalc_zone_t **ozone,
+			 const timecalc_calendar_t *offset,
+			 timecalc_zone_t *based_on)
+{
+  int rv;
+  timecalc_rebased_handle_t *hndl =
+    (timecalc_rebased_handle_t *)malloc(sizeof(timecalc_rebased_handle_t));
+  memset(hndl, '\0', sizeof(timecalc_rebased_handle_t));
+
+  memcpy(&hndl->offset, offset, sizeof(timecalc_calendar_t));
+  hndl->lower = based_on;
+
+  rv = timecalc_zone_new(TIMECALC_SYSTEM_REBASED,
+			 ozone,
+			 0,
+			 (void *)hndl);
+  if (rv)
+    {
+      free(hndl);
+      return rv;
+    }
+  
+  return 0;
+}
+
+static int system_rebased_init(struct timecalc_zone_struct *self,
+			       int argi,
+			       void *argn)
+{
+  self->handle = (void *)argn;
+  return 0;
+}
+
+static int system_rebased_dispose(timecalc_zone_t *self)
+{
+  int rv;
+  timecalc_rebased_handle_t *h = 
+    (timecalc_rebased_handle_t *)self->handle;
+
+  rv = h->lower->dispose(h->lower);
+  free(h->lower);
+  free(h);
+  return rv;
+}
+
+static int system_rebased_offset(struct timecalc_zone_struct *self,
+				 timecalc_calendar_t *offset,
+				 const timecalc_calendar_t *src)
+{
+  timecalc_rebased_handle_t *h = 
+    (timecalc_rebased_handle_t *)self->handle;
+
+  memcpy(offset, &h->offset, sizeof(timecalc_calendar_t));
+  return 0;
+}
+
+static int system_rebased_aux(struct timecalc_zone_struct *self,
+			      const timecalc_calendar_t *calc,
+			      timecalc_calendar_aux_t *aux)
+{
+  timecalc_rebased_handle_t *h = 
+    (timecalc_rebased_handle_t *)self->handle;
+  
+  return h->lower->aux(h->lower, calc, aux);
+}
+
+static int system_rebased_op(struct timecalc_zone_struct *self,
+			     timecalc_calendar_t *dest,
+			     const timecalc_calendar_t *src,
+			     const timecalc_calendar_t *offset,
+			     int op)
+{
+  timecalc_rebased_handle_t *h = 
+    (timecalc_rebased_handle_t *)self->handle;
+  timecalc_calendar_t adj, diff, tgt, srcx;
+  int rv;
+
+  memcpy(&diff, &h->offset, sizeof(timecalc_calendar_t));
+  timecalc_negate(&diff);
+  
+  memcpy(&srcx, src, sizeof(timecalc_calendar_t));
+  srcx.system = h->lower->system;
+
+  // Adjust into lower.
+ 
+  rv = h->lower->op(h->lower, &adj, &srcx, &diff, TIMECALC_OP_COMPLEX_ADD);
+  if (rv) { return rv; }
+
+#if DEBUG_REBASED
+  printf("rebase_op:  src         = %s\n", dbg_pdate(&srcx));
+  printf("            diff        = %s\n", dbg_pdate(&diff));
+  printf("            adj         = %s\n", dbg_pdate(&adj));
+#endif
+
+  rv = h->lower->op(h->lower, &tgt, &adj, offset, op);
+  if (rv) { return rv; }
+
+#if DEBUG_REBASED
+  printf("rebase_op[2]: offset   = %s\n", dbg_pdate(offset));
+  printf("rebase_op[2]: tgt      = %s\n", dbg_pdate(&tgt));
+#endif
+  
+  {
+    int ls = 0;
+    if (tgt.second == 60) { ls =1; --tgt.second; }
+    
+    rv = h->lower->op(h->lower, dest, &tgt, &h->offset, TIMECALC_OP_COMPLEX_ADD);
+    if (rv) { return rv; }
+    if (ls) { ++dest->second; }
+  }
+
+  dest->system = self->system;
+#if DEBUG_REBASED
+  printf("rebase_op[3]:   dest =  %s \n", dbg_pdate(dest));
+#endif
+
+  return 0;
+}
+
+static int system_rebased_epoch(struct timecalc_zone_struct *self,
+				timecalc_calendar_t *aux)
+{
+  timecalc_rebased_handle_t *h = 
+    (timecalc_rebased_handle_t *)self->handle;
+
+  return h->lower->epoch(h->lower, aux);
+}
+
+static int system_rebased_lower_zone(struct timecalc_zone_struct *self,
+				  struct timecalc_zone_struct **next)
+{
+  timecalc_rebased_handle_t *h = 
+    (timecalc_rebased_handle_t *)self->handle;
+
+  (*next) = h->lower;
+  return 0;
 }
 
 

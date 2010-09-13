@@ -55,7 +55,7 @@ static void test_calendar(void);
 static void test_utc(void);
 static void test_utcplus(void);
 static void test_bst(void);
-
+static void test_rebased(void);
 
 int main(int argn, char *args[])
 {
@@ -84,6 +84,9 @@ int main(int argn, char *args[])
 
   printf(" -- test_bst() \n");
   test_bst();
+
+  printf(" -- test_rebased() \n");
+  test_rebased();
 
   return 0;
 }
@@ -838,7 +841,6 @@ static void test_bst(void)
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [1]");
   }
 
-
   // In 2010: last sunday in March = 28
   // last sunday in October = 31
   printf(" ----------------- \n");
@@ -974,9 +976,78 @@ static void test_bst(void)
     ASSERT_STRINGS_EQUAL(buf, result, "Add result compare failed [7]");
   }
 
+  {
+    static timecalc_calendar_t a_value =
+      { 1984, TIMECALC_JULY, 1, 02, 00, 00, 0, TIMECALC_SYSTEM_BST };
+    static const char *result = "1984-07-01 01:00:22.000000000 TAI";
+    timecalc_zone_t *z;
+
+    rv = timecalc_zone_lower_to(bst, &tgt, &z, &a_value, TIMECALC_SYSTEM_GREGORIAN_TAI);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot convert to TAI [8]");
+    
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "TAI conversion compare failed [8]");
+  }
 
   rv = timecalc_zone_dispose(&bst);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() bst");
+}
+
+static void test_rebased(void)
+{
+  timecalc_zone_t *rb;
+  static const char *check_rb_desc = "REBASED*";
+  const char *rb_desc;
+  int rv;
+  timecalc_calendar_t tgt;
+  char buf[128];
+  static const timecalc_calendar_t offset = 
+    { 0, 0, 0,  -1, -14, -3, 0,  TIMECALC_SYSTEM_OFFSET };
+   
+  timecalc_zone_t *tai;
+
+  rv = timecalc_tai_new(&tai);
+  ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot create UTC timezone");
+
+  // We check TAI - 1hr 14m 3s
+  rv = timecalc_rebased_new(&rb, &offset, tai);
+  ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot create offset zone");
+
+  rb_desc = timecalc_describe_system(rb->system);
+  ASSERT_STRINGS_EQUAL(check_rb_desc, rb_desc, "Rebased descriptions don't work");
+
+  {
+    static timecalc_calendar_t a_value = 
+      { 1980, TIMECALC_JANUARY, 1, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static const char *result = "1979-12-31 22:45:57.000000000 REBASED*";
+
+    rv = timecalc_zone_raise(rb, &tgt, &a_value);
+    ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot raise [0]");
+    
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [0]");
+
+  }
+  
+  {
+    static timecalc_calendar_t a_value = 
+      { 1979, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_REBASED };
+    static timecalc_calendar_t b_value = 
+      { 1979, TIMECALC_DECEMBER, 30, 23, 59, 59, 0, TIMECALC_SYSTEM_REBASED };
+    timecalc_interval_t iv;
+    static const char *result = "-1 s 0 ns";
+
+    rv = timecalc_diff(rb, &iv, &a_value, &b_value);
+    ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot diff [1]");
+    
+    timecalc_interval_sprintf(buf, 128, &iv);
+    ASSERT_STRINGS_EQUAL(buf, result, "diff result compare failed [1]");
+  }
+    
+
+    
+  rv = timecalc_zone_dispose(&rb);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() rebased");
 }
 
 

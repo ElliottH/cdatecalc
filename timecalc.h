@@ -85,13 +85,34 @@
 #define TIMECALC_SYSTEM_UTCPLUS_BASE           0x1000
 #define TIMECALC_SYSTEM_UTCPLUS_ZERO          (TIMECALC_SYSTEM_UTCPLUS_BASE + (60*12))
 
+
 /** An offset */
 #define TIMECALC_SYSTEM_OFFSET            4
 
 /** ORd into a system to indicate that it is in some way unconventional;
  *  typically used for rebased systems
  */
-#define TIMECALC_SYSTEM_TAINTED           0x400000000
+#define TIMECALC_SYSTEM_TAINTED           (1 << 30)
+
+/** Symbolic constant for the lowest system you can find */
+#define TIMECALC_SYSTEM_LOWEST            5
+
+/** rebased: this allows you to add or subtract a fixed calendar_t
+ *  from a time system. It's typically used to translate a computer
+ *  time system to a real time system like BST:
+ *
+ *   - Computer times are measured in GREGORIAN_TAI
+ *   - Human times are measured in BST.
+ *   - Construct a scale TIMECALC_SYSTEM_REBASED + offset, 
+ *     giving the offset between a human time lowered to
+ *     TAI and a computer time.
+ *   - Now, when you read a computer time put it in 
+ *     REBASED, lower to TAI and raise to BST.
+ *
+ * timecalc_rebased_tai() and timecalc_bounce() give some support
+ *  for this model.
+ */
+#define TIMECALC_SYSTEM_REBASED           (TIMECALC_SYSTEM_TAINTED | 6)
 
 
 
@@ -120,6 +141,9 @@
 
 //! Internal error
 #define TIMECALC_ERR_INTERNAL_ERROR       (-3993)
+
+//! Cannot convert
+#define TIMECALC_ERR_CANNOT_CONVERT       (-3992)
 
 
 /** Represents an interval.
@@ -229,7 +253,7 @@ typedef struct timecalc_zone_struct
   void *handle;
   
   //! The system this zone handles.
-  int system;
+  uint32_t system;
 
   /** Initialize this zone structure; mainly used internally */
   int (*init)(struct timecalc_zone_struct *self, int arg_i, void *arg_n);
@@ -425,6 +449,14 @@ int timecalc_zone_lower(timecalc_zone_t *zone,
 			timecalc_zone_t **lzone,
 			const timecalc_calendar_t *src);
 
+/** Lower a date to a given system, or if the system is 
+ */
+int timecalc_zone_lower_to(timecalc_zone_t *zone,
+			   timecalc_calendar_t *dest,
+			   timecalc_zone_t **lzone,
+			   const timecalc_calendar_t *src,
+			   int to_system);
+
 
 /** Retrieve a timezone for a given zone code 
  *
@@ -445,10 +477,15 @@ int timecalc_zone_dispose(timecalc_zone_t **io_zone);
  *  any sub-zones
  */
 int timecalc_utc_new(timecalc_zone_t **ozone);
+int timecalc_tai_new(timecalc_zone_t **ozone);
 
 int timecalc_utcplus_new(timecalc_zone_t **ozone, int offset);
 int timecalc_bst_new(timecalc_zone_t **ozone);
 
+/** The rebased zone takes ownership of the zone it's based on */
+int timecalc_rebased_new(timecalc_zone_t **ozone, 
+			 const timecalc_calendar_t *offset,
+			 timecalc_zone_t *based_on);
 
 #endif
 
