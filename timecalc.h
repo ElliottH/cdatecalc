@@ -220,6 +220,9 @@ typedef struct timecalc_zone_struct
    */
   int (*dispose)(struct timecalc_zone_struct *self);
 
+
+#if 0
+
   /** How much time has elapsed between 'before' and 'after' ? 
    *
    * @return 0 on success , < 0 on failure.
@@ -228,7 +231,7 @@ typedef struct timecalc_zone_struct
 	      timecalc_interval_t *ival,
 	      const timecalc_calendar_t *before,
 	      const timecalc_calendar_t *after);
-
+#endif
 
   /** Obtain the calendar_t required to be added to the underlying
    *  calendar to get it into this time zone.
@@ -238,37 +241,24 @@ typedef struct timecalc_zone_struct
    *   to know which additional offsets to knock out when running -
    *   see the documentation for that function for details.
    *
-   *  If leap_second = 1, there is an extra leap second just after
-   *   the current one - remember to add it. This rather odd convention
-   *   makes timecalc_zone_convert() faster.
+   *  Though it makes no difference to the actual offset, (*leap_second)
+   *   will be set to 1 when a leap second follows the time in src.
    *
-   *  We inspect src->system to decide what time zone the source
-   *   is represented in. Time zones should normally be able to handle
-   *   either their calendar timezone (that returned by lower_zone()) or
-   *   their own. In either case, the value returned is the amount one
-   *   adds to get from the calendar timezone to self->system.
+   * cal_offset() should normally be able to take a src of either 
+   *  the native system for this zone or that of the lower zone.
    */
-  int (*cal_offset)(struct timecalc_zone_struct *self,
+  int (*offset)(struct timecalc_zone_struct *self,
 		    timecalc_calendar_t *offset,
 		    const timecalc_calendar_t *src, 
 		    int *leap_second);
 
-  /** Perform a calendar normalisation. This normalises 'cal_io' to
-   *  the underlying calendar system in use (before cal_offset() is
-   *  added), to which the offsets of this time zone are then applied.
-   *
-   *  Note that this causes immense difficulty for time zones like
-   *  BST, since they must normalise to the Julian or Gregorian
-   *  calendars depending on whether the ultimate answer is likely to
-   *  be before or after 1752.
-   *
-   *  In practice, we mostly ignore this as dates for which these
-   *  problems arise are rare and you can always return 
-   *  TIMECALC_ERR_UNDEFINED_DATE
+  /** Fieldwise addition.
    */
-  int (*cal_normalise)(struct timecalc_zone_struct *self,
-		       timecalc_calendar_t *iocal);
-		    
+  int (*op)(struct timecalc_zone_struct *self,
+	    timecalc_calendar_t *dest,
+	    const timecalc_calendar_t *src,
+	    const timecalc_calendar_t *offset,
+	    int op);		    
 
   /** Compute auxilliary info for a calendar date */
   int (*aux)(struct timecalc_zone_struct *self,
@@ -331,6 +321,13 @@ int timecalc_interval_sgn(const timecalc_interval_t *a);
 /** Describe this system as a string, returned in a static buffer */
 const char *timecalc_describe_system(const int system);
 
+/** Add two calendar times fieldwise */
+int timecalc_simple_op(timecalc_calendar_t *result,
+		       const timecalc_calendar_t *a,
+			const timecalc_calendar_t *b, 
+			int op);
+			
+
 
 /** Add an interval to a calendar time and normalise. This is essentially
  *  a repeated add.
@@ -342,11 +339,10 @@ int timecalc_zone_add(timecalc_zone_t *zone,
 
 
 // dst = a + b
-#define TIMECALC_OP_ADD 0
+#define TIMECALC_OP_SIMPLE_ADD 0
 
 // dst = a - b 
 #define TIMECALC_OP_SUBTRACT 1
-
 
 /** Add 'offset' to 'src', and put the result in 'dst'
  *
@@ -364,31 +360,22 @@ int timecalc_zone_add(timecalc_zone_t *zone,
  *  The result's system is src->system .
  * 
  */
-int timecalc_op_offset(struct timecalc_zone_struct *zone,
-		    timecalc_calendar_t *dst,
-		       int op,
-		       const timecalc_calendar_t *src,
-		       const timecalc_calendar_t *offset);
+#define TIMECALC_OP_COMPLEX_ADD 2
 
 
-
-/** Perform a literal add and normalise for two calendar times.
- *
- *  Add fields fieldwise and then normalise - as opposed to the 
- *  ghastly (but 'probably what you want') code in timecalc_add_offset()
- *
- *  The target's system is a's system (b can be anything you want).
- */
-int timecalc_op_fieldwise(struct timecalc_zone_struct *zone,
-			  timecalc_calendar_t *dst,
-			  int op,
-			  const timecalc_calendar_t *a,
-			  const timecalc_calendar_t *b);
+int timecalc_op(struct timecalc_zone_struct *zone,
+		timecalc_calendar_t *dst,
+		const timecalc_calendar_t *src,
+		const timecalc_calendar_t *offset,
+		int op);
 
 
 /** "Raise" a date from the underlying calendar type of a DST 
  *  timezone to a full member of that timezone (so e.g. a Gregorian
  *  TAI to UTC)
+ *
+ *  If the source requires several raises to get to the target type
+ *  of zone, we'll do that too.
  */
 int timecalc_zone_raise(timecalc_zone_t *zone,
 			timecalc_calendar_t *dest,
