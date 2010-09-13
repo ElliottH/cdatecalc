@@ -1,13 +1,16 @@
 CFLAGS=-Wall -Werror --std=c99 -I. -g
 
-all: cdatecalc.o cdctest
+all: cdc.o cdctest
 	@echo Done.
 
-cdctest: cdatecalc.o cdctest.o
+cdctest: cdc.o cdctest.o
 	$(CC) -o $@ $(CFLAGS) $^ 
 
 %.o:%.c
 	$(CC) -o $@ $(CFLAGS) -c $<
+
+cdc.o: cdc.h
+cdctest.o: cdc.h
 
 clean:
 	rm -rf cdctest *.o

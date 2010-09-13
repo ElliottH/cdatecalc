@@ -35,8 +35,7 @@
 
 #define ASSERT_INTERVALS_EQUAL(x,y,s)		\
   if (cdc_interval_cmp((x),(y))) { faili((x),(y),"Intervals not equal",\
-					     (s),__FILE__,__LINE__, __func__); }
-  
+					 (s),__FILE__,__LINE__, __func__); }  
 
 #define ASSERT_INTEGERS_EQUAL(x,y,s) \
   if ((x) != (y)) { failint((x),(y),"Numbers not equal",\
