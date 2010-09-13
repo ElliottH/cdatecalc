@@ -1,16 +1,16 @@
 CFLAGS=-Wall -Werror --std=c99 -I. -g
 
-all: timecalc.o tctest
+all: cdatecalc.o cdctest
 	@echo Done.
 
-tctest: timecalc.o tctest.o
+cdctest: cdatecalc.o cdctest.o
 	$(CC) -o $@ $(CFLAGS) $^ 
 
 %.o:%.c
 	$(CC) -o $@ $(CFLAGS) -c $<
 
 clean:
-	rm -rf tctest *.o
+	rm -rf cdctest *.o
 
 
 # End file.

@@ -1,9 +1,26 @@
-/* tctest.c */
-/* (C) Kynesim Ltd 2010 */
+/* cdtest.c */
+/* (C) Metropolitan Police 2010 */
+
+/*
+ * The contents of this file are subject to the Mozilla Public License
+ * Version 1.1 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ * 
+ * Software distributed under the License is distributed on an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific language governing rights and limitations
+ * under the License.
+ * 
+ * The Original Code is cdatecalc, http://code.google.com/p/cdatecalc
+ * 
+ * The Initial Developer of the Original Code is the Metropolitan Police
+ * All Rights Reserved.
+ */
 
 /** @file
  * 
- * Unit tests for timecalc. Exits with zero status iff all tests
+ * Unit tests for cdc. Exits with zero status iff all tests
  *  have passed.
  *
  * @author Richard Watts <rrw@kynesim.co.uk>
@@ -11,13 +28,13 @@
  */
 
 #include <stdint.h>
-#include "timecalc.h"
+#include "cdc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define ASSERT_INTERVALS_EQUAL(x,y,s)		\
-  if (timecalc_interval_cmp((x),(y))) { faili((x),(y),"Intervals not equal",\
+  if (cdc_interval_cmp((x),(y))) { faili((x),(y),"Intervals not equal",\
 					     (s),__FILE__,__LINE__, __func__); }
   
 
@@ -41,8 +58,8 @@ static void failstring(const char *x, const char *y,
 		    const char *file, const int line,
 		    const char *func);
 
-static void faili(const timecalc_interval_t *a, 
-		  const timecalc_interval_t *b,
+static void faili(const cdc_interval_t *a, 
+		  const cdc_interval_t *b,
 		  const char *leg1,
 		  const char *leg2,
 		  const char *file,
@@ -97,30 +114,30 @@ int main(int argn, char *args[])
 
 static void test_calendar(void)
 {
-  const static timecalc_calendar_t t1 = 
-    { 1990, 0, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+  const static cdc_calendar_t t1 = 
+    { 1990, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
 
-  const static timecalc_calendar_t t2 = 
-    { 1991, 0, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
-  const static timecalc_calendar_t t3 = 
-    { 1990, 0, 1, 0, 0, 0, -3, TIMECALC_SYSTEM_GREGORIAN_TAI };
+  const static cdc_calendar_t t2 = 
+    { 1991, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+  const static cdc_calendar_t t3 = 
+    { 1990, 0, 1, 0, 0, 0, -3, CDC_SYSTEM_GREGORIAN_TAI };
   const static char *rep = "1990-01-01 00:00:00.000000000 TAI";
   char buf[128];
   int rv;
 
-  rv = timecalc_calendar_cmp(&t1, &t2);
+  rv = cdc_calendar_cmp(&t1, &t2);
   ASSERT_INTEGERS_EQUAL(-1, rv, "cmp says t1 is not < t2");
   
-  rv = timecalc_calendar_cmp(&t2, &t1);
+  rv = cdc_calendar_cmp(&t2, &t1);
   ASSERT_INTEGERS_EQUAL(1, rv, "cmp says t2 is not < t1");
 
-  rv = timecalc_calendar_cmp(&t3, &t1);
+  rv = cdc_calendar_cmp(&t3, &t1);
   ASSERT_INTEGERS_EQUAL(-1, rv, "cmp says t3 is not < t1");
   
-  rv = timecalc_calendar_cmp(&t1, &t1);
+  rv = cdc_calendar_cmp(&t1, &t1);
   ASSERT_INTEGERS_EQUAL(0, rv, "cmp says t1 != t1");
   
-  rv = timecalc_calendar_sprintf(buf, 128, &t1);
+  rv = cdc_calendar_sprintf(buf, 128, &t1);
   ASSERT_INTEGERS_EQUAL(rv, 33, "Wrong length for sprintf(t1)");
   ASSERT_STRINGS_EQUAL(buf, rep, "Wrong representation for t1");
 }
@@ -128,118 +145,118 @@ static void test_calendar(void)
 
 static void test_interval(void)
 {
-  const static timecalc_interval_t a = { 6, -100 }, b = { 4010, 1000004000 };
-  const static timecalc_interval_t diff = { -4005, -4100 };
-  const static timecalc_interval_t sum = { 4017, 3900 };
-  timecalc_interval_t c;
+  const static cdc_interval_t a = { 6, -100 }, b = { 4010, 1000004000 };
+  const static cdc_interval_t diff = { -4005, -4100 };
+  const static cdc_interval_t sum = { 4017, 3900 };
+  cdc_interval_t c;
   int rv;
   
   // Check that sum and difference work the way we think they do.
-  timecalc_interval_add(&c, &a, &b);
+  cdc_interval_add(&c, &a, &b);
   ASSERT_INTERVALS_EQUAL(&sum, &c, "add() doesn't work how we expect");
   
-  timecalc_interval_subtract(&c, &a, &b);
+  cdc_interval_subtract(&c, &a, &b);
   ASSERT_INTERVALS_EQUAL(&diff, &c, "subtract() doesn't work how we expect");
 
   // Check comparisons.
-  rv = timecalc_interval_cmp(&a, &b);
-  ASSERT_INTEGERS_EQUAL(-1, rv, "timecalc_interval_cmp(a,b) was not -1");
+  rv = cdc_interval_cmp(&a, &b);
+  ASSERT_INTEGERS_EQUAL(-1, rv, "cdc_interval_cmp(a,b) was not -1");
 
-  rv = timecalc_interval_cmp(&b, &a);
-  ASSERT_INTEGERS_EQUAL(1, rv, "timecalc_interval_cmp(b,a) was not 1");
+  rv = cdc_interval_cmp(&b, &a);
+  ASSERT_INTEGERS_EQUAL(1, rv, "cdc_interval_cmp(b,a) was not 1");
 
-  rv = timecalc_interval_cmp(&a, &a);
+  rv = cdc_interval_cmp(&a, &a);
   ASSERT_INTEGERS_EQUAL(0, rv, "a does not compare equal to a");
 
-  rv = timecalc_interval_cmp(&b, &b);
+  rv = cdc_interval_cmp(&b, &b);
   ASSERT_INTEGERS_EQUAL(0, rv, "b does not compare equal to b");
 
   static const char *a_rep = "6 s -100 ns";
   char buf[128];
 
-  rv = timecalc_interval_sprintf(buf, 128,
+  rv = cdc_interval_sprintf(buf, 128,
 				 &a);
   ASSERT_INTEGERS_EQUAL(11, rv, "String rep of a of wrong length");
   ASSERT_STRINGS_EQUAL(buf, a_rep, "String rep of a not equal to prototype");
   
-  rv = timecalc_interval_sgn(&a);
+  rv = cdc_interval_sgn(&a);
   ASSERT_INTEGERS_EQUAL(1,rv, "sgn(a) is not correct");
 
-  const static timecalc_interval_t nve = { -20, 200 };
-  rv = timecalc_interval_sgn(&nve);
+  const static cdc_interval_t nve = { -20, 200 };
+  rv = cdc_interval_sgn(&nve);
   ASSERT_INTEGERS_EQUAL(-1, rv, "sgn(nve) is not correct");
 
-  const static timecalc_interval_t zer = { 0, 0 };
-  rv = timecalc_interval_sgn(&zer);
+  const static cdc_interval_t zer = { 0, 0 };
+  rv = cdc_interval_sgn(&zer);
   ASSERT_INTEGERS_EQUAL(0, rv,  "sgn(zer) is not correct");
 }
 
 
 static void test_gtai(void)
 {
-  timecalc_zone_t *gtai;
+  cdc_zone_t *gtai;
   static const char *check_gtai_desc = "TAI";
   const char *gtai_desc;
-  static timecalc_calendar_t gtai_epoch = 
-    { 1958, 0, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
-  timecalc_calendar_t a, b;
+  static cdc_calendar_t gtai_epoch = 
+    { 1958, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+  cdc_calendar_t a, b;
   int rv;
   char buf[128];
 
   
-  gtai_desc = timecalc_describe_system(TIMECALC_SYSTEM_GREGORIAN_TAI);
+  gtai_desc = cdc_describe_system(CDC_SYSTEM_GREGORIAN_TAI);
   ASSERT_STRINGS_EQUAL(gtai_desc, check_gtai_desc, "GTAI descriptions don't match");
 
-  rv = timecalc_zone_new(TIMECALC_SYSTEM_GREGORIAN_TAI,
+  rv = cdc_zone_new(CDC_SYSTEM_GREGORIAN_TAI,
 			 &gtai, 0, NULL);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create gtai zone");
   rv = gtai->epoch(gtai, &a);
 
-  rv = timecalc_calendar_cmp(&a, &gtai_epoch);
+  rv = cdc_calendar_cmp(&a, &gtai_epoch);
   ASSERT_INTEGERS_EQUAL(0, rv, "Epoch does not compare equal to prototype");
 
   // Check the epoch
   rv = gtai->epoch(gtai, &a);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot get gtai epoch");
-  rv = timecalc_calendar_cmp(&a, &gtai_epoch);
+  rv = cdc_calendar_cmp(&a, &gtai_epoch);
   ASSERT_INTEGERS_EQUAL(rv, 0, "gtai epoch isn't what we expected");
 
   // Add a year
   {
-    timecalc_interval_t ti;
+    cdc_interval_t ti;
     static const char *check = "1959-01-01 00:00:00.000000000 TAI";
-    static timecalc_calendar_t check_tm = 
-      { 1959, 0, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t check_tm = 
+      { 1959, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
 
 
     ti.ns = 0;
     ti.s = (1 * 365 * 86400);
-    rv = timecalc_zone_add(gtai, &b, &a, &ti);
+    rv = cdc_zone_add(gtai, &b, &a, &ti);
     ASSERT_INTEGERS_EQUAL(0, rv, "add() failed");
-    rv = timecalc_calendar_sprintf(buf, 128, &b);
+    rv = cdc_calendar_sprintf(buf, 128, &b);
     ASSERT_STRINGS_EQUAL(buf, check,
 			 "Adding 1 year of seconds to epoch");
     //printf("b = %s\n", buf);
-    // timecalc_calendar_sprintf(buf, 128, &check_tm);
+    // cdc_calendar_sprintf(buf, 128, &check_tm);
     //printf("check = %s\n", buf);
-    rv = timecalc_calendar_cmp(&b, &check_tm);
+    rv = cdc_calendar_cmp(&b, &check_tm);
     ASSERT_INTEGERS_EQUAL(0, rv, "Adding a year of seconds doesn't lead to year + 1");
   }
 
 
   // Now, 1960 was a leap year. If we add 3 * 365 * 86400, we should get december 31st.
   {
-    timecalc_interval_t ti;
+    cdc_interval_t ti;
     static const char *check1 = "1960-12-31 00:00:00.000000000 TAI";
     
     ti.ns = 0;
     ti.s = (3 * 365 * 86400);
-    rv = timecalc_zone_add(gtai, 
+    rv = cdc_zone_add(gtai, 
 			   &b,
 			   &a,
 			   &ti);
     ASSERT_INTEGERS_EQUAL(0, rv, "add() failed");
-    rv = timecalc_calendar_sprintf(buf, 128, 
+    rv = cdc_calendar_sprintf(buf, 128, 
 				   &b);
     ASSERT_STRINGS_EQUAL(buf, check1,
 			 "Adding 2 years of seconds to epoch failed.");
@@ -248,29 +265,29 @@ static void test_gtai(void)
   // 2000 was a leap year (divisible by 400)
   // 1900 was not (divisible by 100)
   {
-    timecalc_interval_t ti;
-    static timecalc_calendar_t a = 
-      { 2000, 1, 28, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    cdc_interval_t ti;
+    static cdc_calendar_t a = 
+      { 2000, 1, 28, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
 
     // 1996 was
-    static timecalc_calendar_t b = 
-      { 1900, 1, 28, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t b = 
+      { 1900, 1, 28, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
     char buf[128];
-    timecalc_calendar_t c;
+    cdc_calendar_t c;
     const char *check1 = "2000-02-29 00:00:00.000000000 TAI";
     const char *check2 = "1900-03-01 00:00:00.000000000 TAI";
 
     ti.ns = 0;
     ti.s = (86400);
-    rv = timecalc_zone_add(gtai, &c, &a, &ti);
+    rv = cdc_zone_add(gtai, &c, &a, &ti);
     ASSERT_INTEGERS_EQUAL(0, rv, "add() failed");
-    rv = timecalc_calendar_sprintf(buf, 128, &c);
+    rv = cdc_calendar_sprintf(buf, 128, &c);
     ASSERT_STRINGS_EQUAL(buf, check1, 
 			 "Adding a day to 28 Feb 2000");
 
-    rv = timecalc_zone_add(gtai, &c, &b, &ti);
+    rv = cdc_zone_add(gtai, &c, &b, &ti);
     ASSERT_INTEGERS_EQUAL(0, rv, "add() failed");
-    rv = timecalc_calendar_sprintf(buf, 128, &c);
+    rv = cdc_calendar_sprintf(buf, 128, &c);
     ASSERT_STRINGS_EQUAL(buf, check2, 
 			 "Adding a day to 28 Feb 1900");
 
@@ -278,17 +295,17 @@ static void test_gtai(void)
     
   // Now check aux
   {
-    timecalc_calendar_aux_t aux;
-    static timecalc_calendar_t a  =
-      { 2010, 8, 1, 13, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    cdc_calendar_aux_t aux;
+    static cdc_calendar_t a  =
+      { 2010, 8, 1, 13, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
 
     // 18th August 1804 was a Saturday
-    static timecalc_calendar_t b = 
-      { 1804, 7, 18, 13, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t b = 
+      { 1804, 7, 18, 13, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
 
     char buf[128];
 
-    timecalc_calendar_sprintf(buf, 128, &a);
+    cdc_calendar_sprintf(buf, 128, &a);
 
     // 1st Sept 2010 is a Wednesday
     rv = gtai->aux(gtai, &a, &aux);
@@ -325,37 +342,37 @@ static void test_gtai(void)
 
   // ... and diff. 1975 was not a leap year.
   {
-    static timecalc_calendar_t b = 
-      { 1975, TIMECALC_FEBRUARY, 28, 23, 59, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
-    static timecalc_calendar_t a = 
-      { 1975, TIMECALC_MARCH, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
-    timecalc_interval_t iv;
+    static cdc_calendar_t b = 
+      { 1975, CDC_FEBRUARY, 28, 23, 59, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t a = 
+      { 1975, CDC_MARCH, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+    cdc_interval_t iv;
     const char *result = "60 s 0 ns";
     
-    rv = timecalc_diff(gtai, &iv, &b, &a);
+    rv = cdc_diff(gtai, &iv, &b, &a);
     ASSERT_INTEGERS_EQUAL(0, rv, "diff() failed [0]");
     
-    rv = timecalc_interval_sprintf(buf, 128, &iv);
+    rv = cdc_interval_sprintf(buf, 128, &iv);
     ASSERT_STRINGS_EQUAL(buf, result, "diff() result compare failed [0]");
   }
 
   // but 1976 was.
   {
-    static timecalc_calendar_t b = 
-      { 1976, TIMECALC_FEBRUARY, 28, 23, 59, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
-    static timecalc_calendar_t a = 
-      { 1976, TIMECALC_MARCH, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
-    timecalc_interval_t iv;
+    static cdc_calendar_t b = 
+      { 1976, CDC_FEBRUARY, 28, 23, 59, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t a = 
+      { 1976, CDC_MARCH, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+    cdc_interval_t iv;
     const char *result = "86460 s 0 ns";
     
-    rv = timecalc_diff(gtai, &iv, &b, &a);
+    rv = cdc_diff(gtai, &iv, &b, &a);
     ASSERT_INTEGERS_EQUAL(0, rv, "diff() failed [0]");
     
-    rv = timecalc_interval_sprintf(buf, 128, &iv);
+    rv = cdc_interval_sprintf(buf, 128, &iv);
     ASSERT_STRINGS_EQUAL(buf, result, "diff() result compare failed [0]");
   }
 
-  rv = timecalc_zone_dispose(&gtai);
+  rv = cdc_zone_dispose(&gtai);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose gtai");
 }
 
@@ -363,24 +380,24 @@ static void test_gtai(void)
 
 static void test_utc(void)
 {
-  timecalc_zone_t *utc;
+  cdc_zone_t *utc;
   static const char *check_utc_desc = "UTC";
   const char *utc_desc;
   int rv;
   char buf[128];
-  timecalc_calendar_t tgt;
+  cdc_calendar_t tgt;
 
     
-  utc_desc = timecalc_describe_system(TIMECALC_SYSTEM_UTC);
+  utc_desc = cdc_describe_system(CDC_SYSTEM_UTC);
   ASSERT_STRINGS_EQUAL(utc_desc, check_utc_desc, "UTC descriptions don't match");
 
-  rv = timecalc_utc_new(&utc);
+  rv = cdc_utc_new(&utc);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create UTC timezone");
 
   // First off, we need to check a few things. 
   {
-    static timecalc_calendar_t a = 
-      { 1972, TIMECALC_JANUARY, 1, 0, 0, 0, 1, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t a = 
+      { 1972, CDC_JANUARY, 1, 0, 0, 0, 1, CDC_SYSTEM_UTC };
     const char *result = "0000-01-00 00:00:-10.000000000 OFF";
 
 
@@ -389,14 +406,14 @@ static void test_utc(void)
     // ASSERT_INTEGERS_EQUAL(0, ls, "Jan 1 1972 was not a leap second ?! [A0]");
     
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "UTC-TAI offset test failed [A0]");
   }
 
   // Offset just before a leap second.
   {
-    static timecalc_calendar_t a = 
-      { 1972, TIMECALC_DECEMBER, 31, 23, 59, 59, 300, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t a = 
+      { 1972, CDC_DECEMBER, 31, 23, 59, 59, 300, CDC_SYSTEM_UTC };
     const char *result = "0000-01-00 00:00:-11.000000000 OFF";
 
     rv = utc->offset(utc, &tgt, &a);
@@ -404,14 +421,14 @@ static void test_utc(void)
     // ASSERT_INTEGERS_EQUAL(1, ls, "Leap second check [A1]");
     
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "UTC-TAI offset test failed [A1]");
   }
 
   // Offset at a leap second : ls = 0, but offset = -12.
   {
-    static timecalc_calendar_t a = 
-      { 1972, TIMECALC_DECEMBER, 31, 23, 59, 60, 2000, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t a = 
+      { 1972, CDC_DECEMBER, 31, 23, 59, 60, 2000, CDC_SYSTEM_UTC };
     const char *result = "0000-01-00 00:00:-12.000000000 OFF";
     //int ls;
     
@@ -421,36 +438,36 @@ static void test_utc(void)
     // ASSERT_INTEGERS_EQUAL(0, ls, "Leap second check [A2]");
     
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "UTC-TAI offset test failed [A2]");
   }
 
 
   // Convert 1 Jan 1900 to UTC.
   {
-    static timecalc_calendar_t a = 
-      { 1900, TIMECALC_JANUARY, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t a = 
+      { 1900, CDC_JANUARY, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
     static const char *result = "1900-01-01 00:00:00.000000000 UTC";
 
     // Raise to UTC
-    rv = timecalc_zone_raise(utc, &tgt, &a);
+    rv = cdc_zone_raise(utc, &tgt, &a);
     ASSERT_INTEGERS_EQUAL(0, rv, "Raise failed");
 
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Conversion to UTC failed  [1]");
   }
 
   {    
     // Jan 1 1972 00:00:10 is actually UTC 08:<something> because
     // UTC references itself.
-    static timecalc_calendar_t b = 
-      { 1972, TIMECALC_JANUARY, 1, 0, 0, 9, 100000, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t b = 
+      { 1972, CDC_JANUARY, 1, 0, 0, 9, 100000, CDC_SYSTEM_GREGORIAN_TAI };
     static const char *result = "1972-01-01 00:00:07.577282000 UTC";
 
-    rv = timecalc_zone_raise(utc, &tgt, &b);
+    rv = cdc_zone_raise(utc, &tgt, &b);
     ASSERT_INTEGERS_EQUAL(0, rv, "Raise failed [2]");
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Conversion to UTC failed [2]");
   }
   
@@ -459,14 +476,14 @@ static void test_utc(void)
     // Jan 1 1972 00:00:12 is in fact earlier because it acquires the 10s
     // offset applied at the start of 1972.
     // UTC references itself.
-    static timecalc_calendar_t b = 
-      { 1972, TIMECALC_JANUARY, 1, 0, 0, 12, 100000, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t b = 
+      { 1972, CDC_JANUARY, 1, 0, 0, 12, 100000, CDC_SYSTEM_GREGORIAN_TAI };
     static const char *result = "1972-01-01 00:00:02.000100000 UTC";
 
-    rv = timecalc_zone_raise(utc, &tgt, &b);
+    rv = cdc_zone_raise(utc, &tgt, &b);
     ASSERT_INTEGERS_EQUAL(0, rv, "Raise failed [2.5]");
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Conversion to UTC failed [2.5]");
   }
   
@@ -474,15 +491,15 @@ static void test_utc(void)
   {    
     // According to today's bulletin C, UTC-TAI = -34s (ie. TAI is 34s ahead)
     // UTC references itself.
-    static timecalc_calendar_t b = 
-      { 2010, TIMECALC_SEPTEMBER, 2, 19, 56, 12, 000000, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t b = 
+      { 2010, CDC_SEPTEMBER, 2, 19, 56, 12, 000000, CDC_SYSTEM_UTC };
     static const char *result = "2010-09-02 19:56:46.000000000 TAI";
-    timecalc_zone_t *z;
+    cdc_zone_t *z;
 
-    rv = timecalc_zone_lower(utc, &tgt, &z, &b);
+    rv = cdc_zone_lower(utc, &tgt, &z, &b);
     ASSERT_INTEGERS_EQUAL(0, rv, "Lower failed [3]");
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Conversion to TAI failed [3]");
   }
 
@@ -490,358 +507,358 @@ static void test_utc(void)
   
   {
     // .. and there was a leap second on Dec 31st 1978, @ TAI -17
-    static timecalc_calendar_t b = 
-      { 1979, TIMECALC_JANUARY, 1, 0, 0, 17, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t b = 
+      { 1979, CDC_JANUARY, 1, 0, 0, 17, 0, CDC_SYSTEM_GREGORIAN_TAI };
     static const char *result = "1978-12-31 23:59:60.000000000 UTC";
 
-    rv = timecalc_zone_raise(utc, &tgt, &b);
+    rv = cdc_zone_raise(utc, &tgt, &b);
     ASSERT_INTEGERS_EQUAL(0, rv, "Raise failed [4]");
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Conversion to UTC failed [4]");
   }
 
   {
     // .. but adding a month to the start of Dec 1978 takes you to Jan 1978
-    static timecalc_calendar_t b = 
-      { 1978, TIMECALC_DECEMBER, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t b = 
+      { 1978, CDC_DECEMBER, 1, 0, 0, 0, 0, CDC_SYSTEM_UTC };
     static const char *result = "1979-01-01 00:00:00.000000000 UTC";
-    static timecalc_calendar_t add = 
-      { 0, 1, 0, 0, 0, 0, 0, TIMECALC_SYSTEM_INVALID };
+    static cdc_calendar_t add = 
+      { 0, 1, 0, 0, 0, 0, 0, CDC_SYSTEM_INVALID };
 
-    rv = timecalc_op(utc, &tgt,  &b, &add, TIMECALC_OP_COMPLEX_ADD);
+    rv = cdc_op(utc, &tgt,  &b, &add, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [5]");
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [5]");
   }
   {
     // Though adding 31 * 86400 gives you 23:59:60 because of the leap second.
-    static timecalc_calendar_t b = 
-      { 1978, TIMECALC_DECEMBER, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t b = 
+      { 1978, CDC_DECEMBER, 1, 0, 0, 0, 0, CDC_SYSTEM_UTC };
     static const char *result = "1978-12-31 23:59:60.000000000 UTC";
-    static timecalc_calendar_t add = 
-      { 0, 0, 0, 0, 0, 31 * 86400, 0, TIMECALC_SYSTEM_INVALID };
+    static cdc_calendar_t add = 
+      { 0, 0, 0, 0, 0, 31 * 86400, 0, CDC_SYSTEM_INVALID };
 
-    rv = timecalc_op(utc, &tgt, &b, &add, TIMECALC_OP_COMPLEX_ADD);
+    rv = cdc_op(utc, &tgt, &b, &add, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [6]");
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [6]");
   }
   
   {
     // Adding 1s to 23:59:58 gives you 23:59:59
-    static timecalc_calendar_t b = 
-      { 1978, TIMECALC_DECEMBER, 31, 23, 59, 58, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t b = 
+      { 1978, CDC_DECEMBER, 31, 23, 59, 58, 0, CDC_SYSTEM_UTC };
     static const char *result = "1978-12-31 23:59:59.000000000 UTC";
-    static timecalc_calendar_t add = 
-      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_INVALID };
+    static cdc_calendar_t add = 
+      { 0, 0, 0, 0, 0, 1, 0, CDC_SYSTEM_INVALID };
 
-    rv = timecalc_op(utc, &tgt, &b, &add, TIMECALC_OP_COMPLEX_ADD);
+    rv = cdc_op(utc, &tgt, &b, &add, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [7]");
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [7]");
   }
 
   {
     // Adding 2s to 23:59:58 gives you 23:59:60
-    static timecalc_calendar_t b = 
-      { 1978, TIMECALC_DECEMBER, 31, 23, 59, 58, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t b = 
+      { 1978, CDC_DECEMBER, 31, 23, 59, 58, 0, CDC_SYSTEM_UTC };
     static const char *result = "1978-12-31 23:59:60.000000000 UTC";
-    static timecalc_calendar_t add = 
-      { 0, 0, 0, 0, 0, 2, 0, TIMECALC_SYSTEM_INVALID };
+    static cdc_calendar_t add = 
+      { 0, 0, 0, 0, 0, 2, 0, CDC_SYSTEM_INVALID };
 
-    rv = timecalc_op(utc, &tgt,  &b, &add, TIMECALC_OP_COMPLEX_ADD);
+    rv = cdc_op(utc, &tgt,  &b, &add, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [7]");
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [7]");
   }
 
   {
     // Adding 3s gives 0:00:01
-    static timecalc_calendar_t b = 
-      { 1978, TIMECALC_DECEMBER, 31, 23, 59, 58, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t b = 
+      { 1978, CDC_DECEMBER, 31, 23, 59, 58, 0, CDC_SYSTEM_UTC };
     static const char *result = "1979-01-01 00:00:00.000000000 UTC";
-    static timecalc_calendar_t add = 
-      { 0, 0, 0, 0, 0, 3, 0, TIMECALC_SYSTEM_INVALID };
+    static cdc_calendar_t add = 
+      { 0, 0, 0, 0, 0, 3, 0, CDC_SYSTEM_INVALID };
 
-    rv = timecalc_op(utc, &tgt, &b, &add, TIMECALC_OP_COMPLEX_ADD);
+    rv = cdc_op(utc, &tgt, &b, &add, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [8]");
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [8]");
   }
 
   {
     // Adding 1s to 23:59:60 gives 00:00:00
-    static timecalc_calendar_t b = 
-      { 1978, TIMECALC_DECEMBER, 31, 23, 59, 60, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t b = 
+      { 1978, CDC_DECEMBER, 31, 23, 59, 60, 0, CDC_SYSTEM_UTC };
     static const char *result = "1979-01-01 00:00:00.000000000 UTC";
-    static timecalc_calendar_t add = 
-      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_INVALID };
+    static cdc_calendar_t add = 
+      { 0, 0, 0, 0, 0, 1, 0, CDC_SYSTEM_INVALID };
 
-    rv = timecalc_op(utc, &tgt, &b, &add, TIMECALC_OP_COMPLEX_ADD);
+    rv = cdc_op(utc, &tgt, &b, &add, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [9]");
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [9]");
   }
 
 
   {
     // Adding -1s to 23:59:60 gives 23:59:59
-    static timecalc_calendar_t b = 
-      { 1978, TIMECALC_DECEMBER, 31, 23, 59, 60, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t b = 
+      { 1978, CDC_DECEMBER, 31, 23, 59, 60, 0, CDC_SYSTEM_UTC };
     static const char *result = "1978-12-31 23:59:59.000000000 UTC";
-    static timecalc_calendar_t add = 
-      { 0, 0, 0, 0, 0, -1, 0, TIMECALC_SYSTEM_INVALID };
+    static cdc_calendar_t add = 
+      { 0, 0, 0, 0, 0, -1, 0, CDC_SYSTEM_INVALID };
 
-    rv = timecalc_op(utc, &tgt, &b, &add, TIMECALC_OP_COMPLEX_ADD);
+    rv = cdc_op(utc, &tgt, &b, &add, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [10]");
     
-    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    rv = cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [10]");
   }
 
   // Now some diff() tests.
   {
-    static timecalc_calendar_t b = 
-      { 1970, TIMECALC_JANUARY, 2, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC };
-    static timecalc_calendar_t a = 
-      { 1970, TIMECALC_JANUARY, 3, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC };
-    timecalc_interval_t iv;
+    static cdc_calendar_t b = 
+      { 1970, CDC_JANUARY, 2, 0, 0, 0, 0, CDC_SYSTEM_UTC };
+    static cdc_calendar_t a = 
+      { 1970, CDC_JANUARY, 3, 0, 0, 0, 0, CDC_SYSTEM_UTC };
+    cdc_interval_t iv;
     const char *result = "86400 s 0 ns";
     
-    rv = timecalc_diff(utc, &iv, &b, &a);
+    rv = cdc_diff(utc, &iv, &b, &a);
     ASSERT_INTEGERS_EQUAL(0, rv, "diff() failed [11]");
     
-    rv = timecalc_interval_sprintf(buf, 128, &iv);
+    rv = cdc_interval_sprintf(buf, 128, &iv);
     ASSERT_STRINGS_EQUAL(buf, result, "diff() result compare failed [11]");
   }
 
   // There were actually 86401 seconds between 31/12/1975 and 1/1/1976 because
   // of the leap second.
   {
-    static timecalc_calendar_t b = 
-      { 1975, TIMECALC_DECEMBER, 31, 13, 0, 0, 0, TIMECALC_SYSTEM_UTC };
-    static timecalc_calendar_t a = 
-      { 1976, TIMECALC_JANUARY, 1, 13, 0, 0, 0, TIMECALC_SYSTEM_UTC };
-    timecalc_interval_t iv;
+    static cdc_calendar_t b = 
+      { 1975, CDC_DECEMBER, 31, 13, 0, 0, 0, CDC_SYSTEM_UTC };
+    static cdc_calendar_t a = 
+      { 1976, CDC_JANUARY, 1, 13, 0, 0, 0, CDC_SYSTEM_UTC };
+    cdc_interval_t iv;
     const char *result = "86401 s 0 ns";
     
-    rv = timecalc_diff(utc, &iv, &b, &a);
+    rv = cdc_diff(utc, &iv, &b, &a);
     ASSERT_INTEGERS_EQUAL(0, rv, "diff() failed [11]");
     
-    rv = timecalc_interval_sprintf(buf, 128, &iv);
+    rv = cdc_interval_sprintf(buf, 128, &iv);
     ASSERT_STRINGS_EQUAL(buf, result, "diff() result compare failed [11]");
   }
 
   {
-    static timecalc_calendar_t b = 
-      { 1975, TIMECALC_DECEMBER, 31, 23, 59, 60, 0, TIMECALC_SYSTEM_UTC };
-    static timecalc_calendar_t a = 
-      { 1976, TIMECALC_JANUARY, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC };
-    timecalc_interval_t iv;
+    static cdc_calendar_t b = 
+      { 1975, CDC_DECEMBER, 31, 23, 59, 60, 0, CDC_SYSTEM_UTC };
+    static cdc_calendar_t a = 
+      { 1976, CDC_JANUARY, 1, 0, 0, 0, 0, CDC_SYSTEM_UTC };
+    cdc_interval_t iv;
     const char *result = "1 s 0 ns";
     
-    rv = timecalc_diff(utc, &iv, &b, &a);
+    rv = cdc_diff(utc, &iv, &b, &a);
     ASSERT_INTEGERS_EQUAL(0, rv, "diff() failed [12]");
     
-    rv = timecalc_interval_sprintf(buf, 128, &iv);
+    rv = cdc_interval_sprintf(buf, 128, &iv);
     ASSERT_STRINGS_EQUAL(buf, result, "diff() result compare failed [12]");
   }
 
 
-  rv = timecalc_zone_dispose(&utc);
+  rv = cdc_zone_dispose(&utc);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose UTC");
 }
 
 
 static void test_utcplus(void)
 {
-  timecalc_zone_t *utcplus;
+  cdc_zone_t *utcplus;
   static const char *check_utcplus_dest = "UTC+0223";
   static const char *check_utcminus_dest = "UTC-0114";
   const char *utcplus_desc;
   const char *utcminus_desc;
   int rv;
   char buf[128];
-  timecalc_calendar_t tgt;
-  int sys = TIMECALC_SYSTEM_UTCPLUS_ZERO + (2*60 + 23);
-  int sys2 = TIMECALC_SYSTEM_UTCPLUS_ZERO - (1*60 + 14);
+  cdc_calendar_t tgt;
+  int sys = CDC_SYSTEM_UTCPLUS_ZERO + (2*60 + 23);
+  int sys2 = CDC_SYSTEM_UTCPLUS_ZERO - (1*60 + 14);
 
-  utcplus_desc = timecalc_describe_system(sys);
+  utcplus_desc = cdc_describe_system(sys);
   ASSERT_STRINGS_EQUAL(utcplus_desc, check_utcplus_dest, "UTC+ descriptions don't match");
 
-  utcminus_desc = timecalc_describe_system(sys2);
+  utcminus_desc = cdc_describe_system(sys2);
   ASSERT_STRINGS_EQUAL(utcminus_desc, check_utcminus_dest, "UTC- descriptions don't match");
 
-  rv = timecalc_utcplus_new(&utcplus, 2*60 + 23);
+  rv = cdc_utcplus_new(&utcplus, 2*60 + 23);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create UTC+ timezone");
   
   
   // Well before any UTC calculations.
   {
-    static timecalc_calendar_t a_value =
-      { 1940, TIMECALC_FEBRUARY, 3,  13, 00, 00, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t a_value =
+      { 1940, CDC_FEBRUARY, 3,  13, 00, 00, 0, CDC_SYSTEM_GREGORIAN_TAI };
     static const char *result = "1940-02-03 15:23:00.000000000 UTC+0223";
 
-    rv = timecalc_zone_raise(utcplus, &tgt, &a_value);
+    rv = cdc_zone_raise(utcplus, &tgt, &a_value);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise TAI to UTCPLUS");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [0]");
   }
 
 
   // UTC is 10s back in 1972
   {
-    static timecalc_calendar_t a_value =
-      { 1972, TIMECALC_FEBRUARY, 3,  13, 00, 00, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t a_value =
+      { 1972, CDC_FEBRUARY, 3,  13, 00, 00, 0, CDC_SYSTEM_GREGORIAN_TAI };
     static const char *result = "1972-02-03 15:22:50.000000000 UTC+0223";
 
-    rv = timecalc_zone_raise(utcplus, &tgt, &a_value);
+    rv = cdc_zone_raise(utcplus, &tgt, &a_value);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise TAI to UTCPLUS [1]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [1]");
   }
 
   // The 31 Dec 1990 leap second happens on 1 Jan 1991 @ 02:22:59
   {
-    static timecalc_calendar_t a_value = 
-      { 1991, TIMECALC_JANUARY, 1, 02, 22, 60, 0, 0 };
+    static cdc_calendar_t a_value = 
+      { 1991, CDC_JANUARY, 1, 02, 22, 60, 0, 0 };
     static const char *result = "1990-12-31 23:59:60.000000000 UTC";
-    timecalc_zone_t *z;
+    cdc_zone_t *z;
     
     a_value.system = sys;
 
-    rv = timecalc_zone_lower(utcplus, &tgt, &z, &a_value);
+    rv = cdc_zone_lower(utcplus, &tgt, &z, &a_value);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot lower UTCPLUS to UTC ");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Lower result compare failed [2]");
   }
   
   // There are some wierd addition rules, obviously ..
   {
-    static timecalc_calendar_t a_value = 
-      { 1990, TIMECALC_DECEMBER, 31, 23, 59, 59, 0};
-    static timecalc_calendar_t a_second = 
-      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_INVALID };
+    static cdc_calendar_t a_value = 
+      { 1990, CDC_DECEMBER, 31, 23, 59, 59, 0};
+    static cdc_calendar_t a_second = 
+      { 0, 0, 0, 0, 0, 1, 0, CDC_SYSTEM_INVALID };
     static const char *result = "1991-01-01 00:00:00.000000000 UTC+0223";
     
     a_value.system = sys;
-    rv = timecalc_op(utcplus, &tgt,
-		     &a_value, &a_second, TIMECALC_OP_COMPLEX_ADD);
+    rv = cdc_op(utcplus, &tgt,
+		     &a_value, &a_second, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot add 1s [3]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "+1s result failed [3]");
   }
 
   {
-    static timecalc_calendar_t a_value = 
-      { 1991, TIMECALC_JANUARY, 1, 02, 22, 59, 0};
-    static timecalc_calendar_t a_second = 
-      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_INVALID };
+    static cdc_calendar_t a_value = 
+      { 1991, CDC_JANUARY, 1, 02, 22, 59, 0};
+    static cdc_calendar_t a_second = 
+      { 0, 0, 0, 0, 0, 1, 0, CDC_SYSTEM_INVALID };
     static const char *result = "1991-01-01 02:22:60.000000000 UTC+0223";
     
     printf("***\n");
 
     a_value.system = sys;
-    rv = timecalc_op(utcplus, &tgt, 
+    rv = cdc_op(utcplus, &tgt, 
 		     &a_value, &a_second, 
-		     TIMECALC_OP_COMPLEX_ADD);
+		     CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot add 1s [4]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "+1s result failed [4]");
   }
 
   {
-    static timecalc_calendar_t a_value = 
-      { 1991, TIMECALC_JANUARY, 1, 02, 22, 59, 0};
-    static timecalc_calendar_t a_second = 
-      { 0, 0, 0, 0, 0, 2, 0, TIMECALC_SYSTEM_INVALID };
+    static cdc_calendar_t a_value = 
+      { 1991, CDC_JANUARY, 1, 02, 22, 59, 0};
+    static cdc_calendar_t a_second = 
+      { 0, 0, 0, 0, 0, 2, 0, CDC_SYSTEM_INVALID };
     static const char *result = "1991-01-01 02:23:00.000000000 UTC+0223";
     
     printf("***\n");
 
     a_value.system = sys;
-    rv = timecalc_op(utcplus, &tgt, 
+    rv = cdc_op(utcplus, &tgt, 
 		     &a_value, &a_second, 
-		     TIMECALC_OP_COMPLEX_ADD);
+		     CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot add 2s [4]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "+1s result failed [4]");
   }
 
   {
-    static timecalc_calendar_t a_value = 
-      { 1990, TIMECALC_DECEMBER, 31, 13, 0, 0, 0 };
-    static timecalc_calendar_t a_month = 
-      { 0, 2, 0, 0, 0, 0, 0, TIMECALC_SYSTEM_OFFSET };
+    static cdc_calendar_t a_value = 
+      { 1990, CDC_DECEMBER, 31, 13, 0, 0, 0 };
+    static cdc_calendar_t a_month = 
+      { 0, 2, 0, 0, 0, 0, 0, CDC_SYSTEM_OFFSET };
     static const char *result = "1991-03-03 13:00:00.000000000 UTC+0223";
     printf("***\n");
 
     a_value.system = sys;
-    rv = timecalc_op(utcplus, &tgt, 
+    rv = cdc_op(utcplus, &tgt, 
 		     &a_value, &a_month, 
-		     TIMECALC_OP_COMPLEX_ADD);
+		     CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot add 1m [5]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "+1m result failed [5]");
   }
     
-  rv = timecalc_zone_dispose(&utcplus);
+  rv = cdc_zone_dispose(&utcplus);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose UTC+");
 }
 
 static void test_bst(void)
 {
-  timecalc_zone_t *bst;
+  cdc_zone_t *bst;
   static const char *check_bst_desc = "BST";
   const char *bst_desc;
   int rv;
-  timecalc_calendar_t tgt;
+  cdc_calendar_t tgt;
   char buf[128];
 
-  rv = timecalc_bst_new(&bst);
+  rv = cdc_bst_new(&bst);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create bst.");
 
-  bst_desc = timecalc_describe_system(TIMECALC_SYSTEM_BST);
+  bst_desc = cdc_describe_system(CDC_SYSTEM_BST);
   ASSERT_STRINGS_EQUAL(check_bst_desc, bst_desc, "BST descriptions don't match");
   
   // 1 Jan 1980 is basically the same as it always was.
   {
-    static timecalc_calendar_t a_value = 
-      { 1980, TIMECALC_JANUARY, 1, 01, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t a_value = 
+      { 1980, CDC_JANUARY, 1, 01, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
     // Remember the UTC - TAI correction .. 
     static const char *result = "1980-01-01 00:59:41.000000000 BST";
 
-    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    rv = cdc_zone_raise(bst, &tgt, &a_value);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise TAI to BST [0]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [0]");
   }
 
   {
-    static timecalc_calendar_t a_value = 
-      { 1980, TIMECALC_JANUARY, 1, 01, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t a_value = 
+      { 1980, CDC_JANUARY, 1, 01, 0, 0, 0, CDC_SYSTEM_UTC };
     // Remember the UTC - TAI correction .. 
     static const char *result = "1980-01-01 01:00:00.000000000 BST";
 
-    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    rv = cdc_zone_raise(bst, &tgt, &a_value);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [1]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [1]");
   }
 
@@ -849,14 +866,14 @@ static void test_bst(void)
   // last sunday in October = 31
   printf(" ----------------- \n");
   {
-    static timecalc_calendar_t a_value = 
-      { 2010, TIMECALC_MARCH, 28, 13, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t a_value = 
+      { 2010, CDC_MARCH, 28, 13, 0, 0, 0, CDC_SYSTEM_UTC };
     static const char *result = "2010-03-28 14:00:00.000000000 BST";
 
-    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    rv = cdc_zone_raise(bst, &tgt, &a_value);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [2]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [2]");
   }
     
@@ -864,101 +881,101 @@ static void test_bst(void)
 
   // BST starts at 0100, so 0059 UTC -> 0059 BST
   {
-    static timecalc_calendar_t a_value = 
-      { 2010, TIMECALC_MARCH, 28, 00, 59, 59, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t a_value = 
+      { 2010, CDC_MARCH, 28, 00, 59, 59, 0, CDC_SYSTEM_UTC };
     static const char *result = "2010-03-28 00:59:59.000000000 BST";
 
-    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    rv = cdc_zone_raise(bst, &tgt, &a_value);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [2]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [2]");
   }
 
   // 0200 BST is 0100 UTC.
   {
-    static timecalc_calendar_t a_value = 
-      { 2010, TIMECALC_MARCH, 28, 02, 00, 00, 0, TIMECALC_SYSTEM_BST };
+    static cdc_calendar_t a_value = 
+      { 2010, CDC_MARCH, 28, 02, 00, 00, 0, CDC_SYSTEM_BST };
     static const char *result = "2010-03-28 01:00:00.000000000 UTC";
-    timecalc_zone_t *z;
+    cdc_zone_t *z;
 
-    rv = timecalc_zone_lower(bst, &tgt, &z, &a_value);
+    rv = cdc_zone_lower(bst, &tgt, &z, &a_value);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot lower BST to UTC [3]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Lower result compare failed [3]");
   }
 
   // However, there is 1s of elapsed time between 00:59:59 BST and 02:00:00 BST.
   {
-    static timecalc_calendar_t a_value = 
-      { 2010, TIMECALC_MARCH, 28, 00, 59, 59, 0, TIMECALC_SYSTEM_BST };
-    static timecalc_calendar_t b_value = 
-      { 2010, TIMECALC_MARCH, 28, 02, 0, 0, 0, TIMECALC_SYSTEM_BST };
-    timecalc_interval_t iv;
+    static cdc_calendar_t a_value = 
+      { 2010, CDC_MARCH, 28, 00, 59, 59, 0, CDC_SYSTEM_BST };
+    static cdc_calendar_t b_value = 
+      { 2010, CDC_MARCH, 28, 02, 0, 0, 0, CDC_SYSTEM_BST };
+    cdc_interval_t iv;
     static const char *result = "1 s 0 ns";
 
-    rv = timecalc_diff(bst, &iv, &a_value, &b_value);
+    rv = cdc_diff(bst, &iv, &a_value, &b_value);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot measure interval [4]");
     
-    timecalc_interval_sprintf(buf, 128, &iv);
+    cdc_interval_sprintf(buf, 128, &iv);
     ASSERT_STRINGS_EQUAL(buf, result, "Interval result compare failed [4]");
   }
 
   // Now, a tricky case.
   {
     // The last Sunday in October 2020 is 25th.
-    static timecalc_calendar_t a_value = 
-      { 2020, TIMECALC_OCTOBER, 26, 00, 59, 59, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t a_value = 
+      { 2020, CDC_OCTOBER, 26, 00, 59, 59, 0, CDC_SYSTEM_UTC };
     static const char *result = "2020-10-26 00:59:59.000000000 BST";
 
-    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    rv = cdc_zone_raise(bst, &tgt, &a_value);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [5]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [5]");
   }
 
   {
     // The last Sunday in October 2020 is 25th.
-    static timecalc_calendar_t a_value = 
-      { 2020, TIMECALC_OCTOBER, 24, 00, 59, 59, 0, TIMECALC_SYSTEM_UTC };
+    static cdc_calendar_t a_value = 
+      { 2020, CDC_OCTOBER, 24, 00, 59, 59, 0, CDC_SYSTEM_UTC };
     static const char *result = "2020-10-24 01:59:59.000000000 BST";
 
-    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    rv = cdc_zone_raise(bst, &tgt, &a_value);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [5]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [5]");
   }
 
   // Add 1s to a totally uncontroversial time.
   {
-    static timecalc_calendar_t a_value = 
-      { 1983, TIMECALC_DECEMBER, 1, 0, 59, 59, 0, TIMECALC_SYSTEM_BST };
-    static timecalc_calendar_t one_second = 
-      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_OFFSET };
+    static cdc_calendar_t a_value = 
+      { 1983, CDC_DECEMBER, 1, 0, 59, 59, 0, CDC_SYSTEM_BST };
+    static cdc_calendar_t one_second = 
+      { 0, 0, 0, 0, 0, 1, 0, CDC_SYSTEM_OFFSET };
     static const char *result = "1983-12-01 01:00:00.000000000 BST";
     
-    rv = timecalc_op(bst, &tgt, &a_value, &one_second, TIMECALC_OP_COMPLEX_ADD);
+    rv = cdc_op(bst, &tgt, &a_value, &one_second, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add 1s to BST time [6]");
 
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Add result compare failed [6]");
   }
 
   // .. and whilst BST is on.
   {
-    static timecalc_calendar_t a_value = 
-      { 1983, TIMECALC_APRIL, 1, 23, 59, 59, 0, TIMECALC_SYSTEM_BST };
-    static timecalc_calendar_t one_second = 
-      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_OFFSET };
+    static cdc_calendar_t a_value = 
+      { 1983, CDC_APRIL, 1, 23, 59, 59, 0, CDC_SYSTEM_BST };
+    static cdc_calendar_t one_second = 
+      { 0, 0, 0, 0, 0, 1, 0, CDC_SYSTEM_OFFSET };
     static const char *result = "1983-04-02 00:00:00.000000000 BST";
     
-    rv = timecalc_op(bst, &tgt, &a_value, &one_second, TIMECALC_OP_COMPLEX_ADD);
+    rv = cdc_op(bst, &tgt, &a_value, &one_second, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add 1s to BST time [7]");
 
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Add result compare failed [7]");
   }
   
@@ -967,159 +984,159 @@ static void test_bst(void)
   // The UTC leap second in June 1983 happened in BST, apparently at 0:59:59 on
   // 1 July.
   {
-    static timecalc_calendar_t a_value = 
-      { 1983, TIMECALC_JULY, 1, 0, 59, 59, 0, TIMECALC_SYSTEM_BST };
-    static timecalc_calendar_t one_second = 
-      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_OFFSET };
+    static cdc_calendar_t a_value = 
+      { 1983, CDC_JULY, 1, 0, 59, 59, 0, CDC_SYSTEM_BST };
+    static cdc_calendar_t one_second = 
+      { 0, 0, 0, 0, 0, 1, 0, CDC_SYSTEM_OFFSET };
     static const char *result = "1983-07-01 00:59:60.000000000 BST";
     
-    rv = timecalc_op(bst, &tgt, &a_value, &one_second, TIMECALC_OP_COMPLEX_ADD);
+    rv = cdc_op(bst, &tgt, &a_value, &one_second, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add 1s to BST time [7]");
 
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Add result compare failed [7]");
   }
 
   {
-    static timecalc_calendar_t a_value =
-      { 1984, TIMECALC_JULY, 1, 02, 00, 00, 0, TIMECALC_SYSTEM_BST };
+    static cdc_calendar_t a_value =
+      { 1984, CDC_JULY, 1, 02, 00, 00, 0, CDC_SYSTEM_BST };
     static const char *result = "1984-07-01 01:00:22.000000000 TAI";
-    timecalc_zone_t *z;
+    cdc_zone_t *z;
 
-    rv = timecalc_zone_lower_to(bst, &tgt, &z, &a_value, TIMECALC_SYSTEM_GREGORIAN_TAI);
+    rv = cdc_zone_lower_to(bst, &tgt, &z, &a_value, CDC_SYSTEM_GREGORIAN_TAI);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot convert to TAI [8]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "TAI conversion compare failed [8]");
   }
 
-  rv = timecalc_zone_dispose(&bst);
+  rv = cdc_zone_dispose(&bst);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() bst");
 }
 
 static void test_rebased(void)
 {
-  timecalc_zone_t *rb;
+  cdc_zone_t *rb;
   static const char *check_rb_desc = "REBASED*";
   const char *rb_desc;
   int rv;
-  timecalc_calendar_t tgt;
+  cdc_calendar_t tgt;
   char buf[128];
-  static const timecalc_calendar_t offset = 
-    { 0, 0, 0,  -1, -14, -3, 0,  TIMECALC_SYSTEM_OFFSET };
+  static const cdc_calendar_t offset = 
+    { 0, 0, 0,  -1, -14, -3, 0,  CDC_SYSTEM_OFFSET };
    
-  timecalc_zone_t *tai;
+  cdc_zone_t *tai;
 
-  rv = timecalc_tai_new(&tai);
+  rv = cdc_tai_new(&tai);
   ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot create UTC timezone");
 
   // We check TAI - 1hr 14m 3s
-  rv = timecalc_rebased_new(&rb, &offset, tai);
+  rv = cdc_rebased_new(&rb, &offset, tai);
   ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot create offset zone");
 
-  rb_desc = timecalc_describe_system(rb->system);
+  rb_desc = cdc_describe_system(rb->system);
   ASSERT_STRINGS_EQUAL(check_rb_desc, rb_desc, "Rebased descriptions don't work");
 
   {
-    static timecalc_calendar_t a_value = 
-      { 1980, TIMECALC_JANUARY, 1, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static cdc_calendar_t a_value = 
+      { 1980, CDC_JANUARY, 1, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
     static const char *result = "1979-12-31 22:45:57.000000000 REBASED*";
 
-    rv = timecalc_zone_raise(rb, &tgt, &a_value);
+    rv = cdc_zone_raise(rb, &tgt, &a_value);
     ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot raise [0]");
     
-    timecalc_calendar_sprintf(buf, 128, &tgt);
+    cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [0]");
 
   }
   
   {
-    static timecalc_calendar_t a_value = 
-      { 1979, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_REBASED };
-    static timecalc_calendar_t b_value = 
-      { 1979, TIMECALC_DECEMBER, 30, 23, 59, 59, 0, TIMECALC_SYSTEM_REBASED };
-    timecalc_interval_t iv;
+    static cdc_calendar_t a_value = 
+      { 1979, CDC_DECEMBER, 31, 0, 0, 0, 0, CDC_SYSTEM_REBASED };
+    static cdc_calendar_t b_value = 
+      { 1979, CDC_DECEMBER, 30, 23, 59, 59, 0, CDC_SYSTEM_REBASED };
+    cdc_interval_t iv;
     static const char *result = "-1 s 0 ns";
 
-    rv = timecalc_diff(rb, &iv, &a_value, &b_value);
+    rv = cdc_diff(rb, &iv, &a_value, &b_value);
     ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot diff [1]");
     
-    timecalc_interval_sprintf(buf, 128, &iv);
+    cdc_interval_sprintf(buf, 128, &iv);
     ASSERT_STRINGS_EQUAL(buf, result, "diff result compare failed [1]");
   }
     
 
     
-  rv = timecalc_zone_dispose(&rb);
+  rv = cdc_zone_dispose(&rb);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() rebased");
 
-  rv = timecalc_zone_dispose(&tai);
+  rv = cdc_zone_dispose(&tai);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() tai");
 
 }
 
 static void test_bounce(void)
 {
-  timecalc_zone_t *bst;
-  timecalc_zone_t *offset;
+  cdc_zone_t *bst;
+  cdc_zone_t *offset;
   int rv;
   char buf[128];
 
   {
     // 1 hr
-    timecalc_calendar_t human = 
-      { 2010, TIMECALC_JUNE, 4, 12, 23, 04, 0, TIMECALC_SYSTEM_BST };
-    timecalc_calendar_t computer =
-      { 2010, TIMECALC_JUNE, 4, 12, 23, 04, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
-    timecalc_calendar_t tgt;
+    cdc_calendar_t human = 
+      { 2010, CDC_JUNE, 4, 12, 23, 04, 0, CDC_SYSTEM_BST };
+    cdc_calendar_t computer =
+      { 2010, CDC_JUNE, 4, 12, 23, 04, 0, CDC_SYSTEM_GREGORIAN_TAI };
+    cdc_calendar_t tgt;
     
-    rv = timecalc_bst_new(&bst);
+    rv = cdc_bst_new(&bst);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot construct bst");
     
-    rv = timecalc_rebased_tai(&offset, bst, &human, &computer);
+    rv = cdc_rebased_tai(&offset, bst, &human, &computer);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot construct offset");
     
     {
-      static timecalc_calendar_t a = 
-	{ 2010, TIMECALC_NOVEMBER, 5, 15, 00, 00, 0, TIMECALC_SYSTEM_BST };
+      static cdc_calendar_t a = 
+	{ 2010, CDC_NOVEMBER, 5, 15, 00, 00, 0, CDC_SYSTEM_BST };
       // Actually an hour ahead because BST has ticked back an hour at the end
       // of BST, but the computer clock has just carried on ticking.
       static const char *result = "2010-11-05 16:00:00.000000000 REBASED*";
       
-      rv = timecalc_bounce(bst, offset, &tgt, &a);
+      rv = cdc_bounce(bst, offset, &tgt, &a);
       ASSERT_INTEGERS_EQUAL(0, rv, "Cannot bounce time [0]");
       
-      timecalc_calendar_sprintf(buf, 128, &tgt);
+      cdc_calendar_sprintf(buf, 128, &tgt);
       ASSERT_STRINGS_EQUAL(buf, result, "Bounce time check failed [0]");
     }
   }
 
   {
     // 1yr 5 months, 3 days, 12 hours, 23 minutes, 04 s
-    timecalc_calendar_t human = 
-      { 2010, TIMECALC_JUNE, 4, 12, 23, 04, 0, TIMECALC_SYSTEM_BST };
-    timecalc_calendar_t computer =
-      { 2009, TIMECALC_JANUARY, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
-    timecalc_calendar_t tgt;
+    cdc_calendar_t human = 
+      { 2010, CDC_JUNE, 4, 12, 23, 04, 0, CDC_SYSTEM_BST };
+    cdc_calendar_t computer =
+      { 2009, CDC_JANUARY, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+    cdc_calendar_t tgt;
     
-    rv = timecalc_bst_new(&bst);
+    rv = cdc_bst_new(&bst);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot construct bst");
     
-    rv = timecalc_rebased_tai(&offset, bst, &human, &computer);
+    rv = cdc_rebased_tai(&offset, bst, &human, &computer);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot construct offset");
     
     {
       // We are actually one hour ahead, but so was the original human
       // time, so the apparent difference is what you see above, and
       // we should expect 2009 - 01 - 02 02:36:56.
-      static timecalc_calendar_t a = 
-	{ 2010, TIMECALC_JUNE, 5, 15, 00, 00, 0, TIMECALC_SYSTEM_BST };
+      static cdc_calendar_t a = 
+	{ 2010, CDC_JUNE, 5, 15, 00, 00, 0, CDC_SYSTEM_BST };
       static const char *result = "2009-01-02 02:36:56.000000000 REBASED*";
       
-      rv = timecalc_bounce(bst, offset, &tgt, &a);
+      rv = cdc_bounce(bst, offset, &tgt, &a);
       ASSERT_INTEGERS_EQUAL(0, rv, "Cannot bounce time [0]");
       
-      timecalc_calendar_sprintf(buf, 128, &tgt);
+      cdc_calendar_sprintf(buf, 128, &tgt);
       ASSERT_STRINGS_EQUAL(buf, result, "Bounce time check failed [0]");
     }
 
@@ -1129,28 +1146,28 @@ static void test_bounce(void)
       // => we should expect 2011-11-08 03:23:04 -1hr for BST.
       // However, the number of days between Jan and Jun is one
       // less than between Jun and Nov, so in fact we get 2011-11-07
-      static timecalc_calendar_t a = 
-	{ 2010, TIMECALC_JUNE, 5, 15, 00, 00, 0, TIMECALC_SYSTEM_REBASED };
+      static cdc_calendar_t a = 
+	{ 2010, CDC_JUNE, 5, 15, 00, 00, 0, CDC_SYSTEM_REBASED };
       static const char *result = "2011-11-07 02:23:04.000000000 BST";
 
-      rv = timecalc_bounce(offset, bst, &tgt, &a);
+      rv = cdc_bounce(offset, bst, &tgt, &a);
       ASSERT_INTEGERS_EQUAL(0, rv, "Cannot bounce time [1]");
       
-      timecalc_calendar_sprintf(buf, 128, &tgt);
+      cdc_calendar_sprintf(buf, 128, &tgt);
       ASSERT_STRINGS_EQUAL(buf, result, "Bounce time check failed [1]");
     }
 
     printf("------------\n");
     {
       // .. and now ahead by an hour because we've landed in BST.
-      static timecalc_calendar_t a = 
-	{ 2010, TIMECALC_OCTOBER, 5, 15, 00, 00, 0, TIMECALC_SYSTEM_REBASED };
+      static cdc_calendar_t a = 
+	{ 2010, CDC_OCTOBER, 5, 15, 00, 00, 0, CDC_SYSTEM_REBASED };
       static const char *result = "2012-03-08 03:23:04.000000000 BST";
 
-      rv = timecalc_bounce(offset, bst, &tgt, &a);
+      rv = cdc_bounce(offset, bst, &tgt, &a);
       ASSERT_INTEGERS_EQUAL(0, rv, "Cannot bounce time [2]");
       
-      timecalc_calendar_sprintf(buf, 128, &tgt);
+      cdc_calendar_sprintf(buf, 128, &tgt);
       ASSERT_STRINGS_EQUAL(buf, result, "Bounce time check failed [2]");
     }
 
@@ -1161,15 +1178,15 @@ static void test_bounce(void)
   
 
 
-  rv = timecalc_zone_dispose(&offset);
+  rv = cdc_zone_dispose(&offset);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() offset");
-  rv = timecalc_zone_dispose(&bst);
+  rv = cdc_zone_dispose(&bst);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() bst");
 }
 
 
-static void faili(const timecalc_interval_t *a,
-		  const timecalc_interval_t *b,
+static void faili(const cdc_interval_t *a,
+		  const cdc_interval_t *b,
 		  const char *leg1,
 		  const char *leg2,
 		  const char *file,
@@ -1177,8 +1194,8 @@ static void faili(const timecalc_interval_t *a,
 		  const char *func)
 {
   char bx[128], bx2[128];
-  timecalc_interval_sprintf(bx, 128, a);
-  timecalc_interval_sprintf(bx2, 128, b);
+  cdc_interval_sprintf(bx, 128, a);
+  cdc_interval_sprintf(bx2, 128, b);
 
   fprintf(stderr, "%s:%d (%s) Failed: %s %s (op1=%s, op2=%s)\n",
 	  file, line, func, leg1, leg2, bx, bx2);
