@@ -466,6 +466,39 @@ static void test_utc(void)
     ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [8]");
   }
 
+  {
+    // Adding 1s to 23:59:60 gives 00:00:00
+    static timecalc_calendar_t b = 
+      { 1978, TIMECALC_DECEMBER, 31, 23, 59, 60, 0, TIMECALC_SYSTEM_UTC };
+    static const char *result = "1979-01-01 00:00:00.000000000 UTC";
+    static timecalc_calendar_t add = 
+      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_INVALID };
+
+    rv = timecalc_op_offset(utc, &tgt, TIMECALC_OP_ADD, &b, &add);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [9]");
+    
+    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [9]");
+  }
+
+
+  {
+    // Adding -1s to 23:59:60 gives 23:59:59
+    static timecalc_calendar_t b = 
+      { 1978, TIMECALC_DECEMBER, 31, 23, 59, 60, 0, TIMECALC_SYSTEM_UTC };
+    static const char *result = "1978-12-31 23:59:59.000000000 UTC";
+    static timecalc_calendar_t add = 
+      { 0, 0, 0, 0, 0, -1, 0, TIMECALC_SYSTEM_INVALID };
+
+    rv = timecalc_op_offset(utc, &tgt, TIMECALC_OP_ADD, &b, &add);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [10]");
+    
+    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [10]");
+  }
+
+  
+
  
 
 

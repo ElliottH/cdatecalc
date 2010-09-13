@@ -621,7 +621,7 @@ int timecalc_op_offset(struct timecalc_zone_struct *zone,
     if (go) { dst_offset.ns = src_offset.ns; }
   }
 
-  //printf("ds = %d ,ss = %d \n",
+  // printf("ds = %d ,ss = %d \n",
   // dst_offset.second, src_offset.second);
 
   // Now apply the offsets .. 
