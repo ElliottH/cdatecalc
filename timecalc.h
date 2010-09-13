@@ -113,6 +113,9 @@
 //! Invalid argument
 #define TIMECALC_ERR_INVALID_ARGUMENT     (-3994)
 
+//! Internal error
+#define TIMECALC_ERR_INTERNAL_ERROR       (-3993)
+
 
 /** Represents an interval.
  *
@@ -182,6 +185,14 @@ typedef struct timecalc_calendar_aux_struct
 {
   /** Day of the week (Sunday = 0, Saturday = 6) */
   int wday;
+
+#define TIMECALC_SUNDAY 0
+#define TIMECALC_MONDAY 1
+#define TIMECALC_TUESDAY 2
+#define TIMECALC_WEDNESDAY 3
+#define TIMECALC_THURSDAY 4
+#define TIMECALC_FRIDAY 5
+#define TIMECALC_SATURDAY 6
 
   /** Day of the year (0-365) */
   int yday;

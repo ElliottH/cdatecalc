@@ -336,22 +336,26 @@ static timecalc_zone_t s_system_utcplus =
   };
 
 
-#if 0
 static int bst_init(struct timecalc_zone_struct *self,
-		    void *arg);
+		    int iarg, void *parg);
 static int bst_dispose(struct timecalc_zone_struct *self);
 
+#if 0
 static int system_bst_diff(struct timecalc_zone_struct *self,
 			   timecalc_interval_t *ival,
 			   const timecalc_calendar_t *before,
 			   const timecalc_calendar_t *after);
+#endif
 
 static int system_bst_offset(struct timecalc_zone_struct *self,
 			     timecalc_calendar_t *offset,
 			     const timecalc_calendar_t *src);
 
-static int system_bst_normalise(struct timecalc_zone_struct *self,
-				timecalc_calendar_t *io_cal);
+static int system_bst_op(struct timecalc_zone_struct *self,
+			 timecalc_calendar_t *dest,
+			 const timecalc_calendar_t *src,
+			 const timecalc_calendar_t *offset,
+			 int op);
 
 static int system_bst_aux(struct timecalc_zone_struct *self,
 			  const timecalc_calendar_t *calc,
@@ -370,24 +374,12 @@ static timecalc_zone_t s_system_bst =
     TIMECALC_SYSTEM_BST,
     bst_init,
     bst_dispose,
-    system_bst_diff,
     system_bst_offset,
-    system_bst_normalise,
+    system_bst_op,
     system_bst_aux,
     system_bst_epoch,
     system_bst_lower_zone
   };
-
-#endif
-
-/* BST: Applied to any other time zone.
- *
- * From <http://www.direct.gov.uk/en/Governmentcitizensandrights/LivingintheUK/DG_073741>
- *
- *  - In spring, the clocks go forward 1h at 0100 GMT on the last Sunday in March.
- *  - In autumn, the clocks go back 1h at 0200 BST on the last Sunday in October.
- */
-
 
 /** Do knockdown of a DST difference by an offset, as required for a complex
  *  add 
@@ -1620,6 +1612,243 @@ static const char *dbg_pdate(const timecalc_calendar_t *cal)
   timecalc_calendar_sprintf(buf, 128, cal);
   return buf;
 }
+
+/* ----------------------------- BST ------------------- */
+
+
+/* BST: Applied to any other time zone.
+ *
+ * From <http://www.direct.gov.uk/en/Governmentcitizensandrights/LivingintheUK/DG_073741>
+ *
+ *  - In spring, the clocks go forward 1h at 0100 GMT on the last Sunday in March.
+ *  - In autumn, the clocks go back 1h at 0200 BST on the last Sunday in October.
+ */
+
+static int is_bst(timecalc_calendar_t *cal);
+
+
+static int bst_init(struct timecalc_zone_struct *self,
+	     int iarg, void *parg)
+{
+  int rv;
+  timecalc_zone_t *q = NULL;
+
+  rv = timecalc_zone_new(TIMECALC_SYSTEM_UTC, &q, 0, NULL);
+  if (rv) { return rv; }
+  self->handle = (void *)q;
+  return 0;
+}
+
+static int bst_dispose(struct timecalc_zone_struct *self)
+{
+  timecalc_zone_t *q = (timecalc_zone_t *)self->handle;
+  int rv;
+
+  rv = timecalc_zone_dispose(&q);
+  self->handle = NULL;
+  return rv;
+}
+
+static int system_bst_offset(struct timecalc_zone_struct *self,
+			     timecalc_calendar_t *offset,
+			     const timecalc_calendar_t *src)
+{
+  // Is it after the last Sunday in march?
+  timecalc_zone_t *utc = (timecalc_zone_t *)self->handle;
+  int bst = is_bst(utc, src);
+  if (bst < 0) { return bst; }
+  
+  memset(offset, '\0', sizeof(timecalc_calendar_t));
+      
+  if (bst)
+    {
+      // One hour ahead
+      offset.hour = 1;
+    }
+  return 0;
+}
+
+static int system_bst_op(struct timecalc_zone_struct *self,
+			 timecalc_calendar_t *dest,
+			 const timecalc_calendar_t *src,
+			 const timecalc_calendar_t *offset,
+			 int op)
+{
+  timecalc_zone_t *utc = (timecalc_zone_t *)self->handle;
+  timecalc_calendar_t adj, diff, tgt, srcx;
+  int rv;
+
+  printf("bst_op: src = %s \n", dbg_pdate(src));
+  rv = self->offset(self, &diff, src);
+  if (rv) { return rv; }
+
+  memcpy(&srcx, src, sizeof(timecalc_calendar_t));
+  srcx.system = utc->system;
+  
+  printf("bst_op: initial src offset = %s \n", dbg_pdate(&diff));
+
+  rv = utc->op(utc, &adj, &srcx, &diff, TIMECALC_OP_COMPLEX_ADD);
+  if (rv) { return rv; }
+
+  printf("bst_op: adj = %s \n", dbg_pdate(&adj));
+  rv = utc->op(utc, &tgt, &adj, offset, op);
+  if (rv) { return rv; }
+  
+  rv = self->offset(self, &diff, &tgt);
+  if (rv) { return rv; }
+  printf("bst_op: initial tgt = %s \n", dbg_pdate(&tgt));
+  printf("bst_op: initial tgt offset = %s \n", dbg_pdate(&diff));
+
+  // Luckily we need not think about this too hard as leap seconds
+  // never happen at the same time as BST transitions.
+  
+  {
+    int ls = 0;
+    if (tgt.second == 60) { ls = 1; --tgt.second; }
+    
+    rv = utc->op(utc, dest, &tgt, &diff, TIMECALC_OP_COMPLEX_ADD);
+    if (rv) { return rv; }
+    if (ls) { ++dest->second; }
+  }
+
+  dest->system = self->system;
+
+  printf("bst_op: dest = %s \n", dbg_pdate(dest));
+  return 0;
+}
+
+static int system_bst_aux(struct timecalc_zone_struct *self,
+			  const timecalc_calendar_t *calc,
+			  timecalc_calendar_aux_t *aux)
+{
+  timecalc_zone_t *utc = (timecalc_zone_t *)self->handle;
+  int rv;
+
+  rv = utc->aux(utc, calc, aux);
+  if (rv) { return rv; }
+
+  // Is it DST?
+  aux->isdst = is_bst(utc, calc);
+  return 0;
+}
+
+static int system_bst_epoch(struct timecalc_zone_struct *self,
+			    timecalc_calendar_t *aux)
+{
+  timecalc_zone_t *utc = (timecalc_zone_t *)self->handle;
+
+  return utc->epoch(utc, aux);
+}
+
+static int system_bst_lower_zone(struct timecalc_zone_struct *self,
+				 struct timecalc_zone_struct **next)
+{
+  (*next) = (struct timecalc_zone_struct *)self->handle;
+  return 0;
+}
+
+
+static int is_bst(struct timecalc_zone_struct *utc, timecalc_calendar_t *cal)
+{
+  // The date actually doesn't matter so ..
+  if (cal->month < TIMECALC_MARCH || cal->month > TIMECALC_OCTOBER)
+    {
+      // Can't possibly be BST.
+      return 0;
+    }
+  if (cal->month > TIMECALC_MARCH && cal->month < TIMECALC_OCTOBER)
+    {
+      // Must be BST
+      return 1;
+    }
+
+  // Otherwise ..
+  if (cal->month == TIMECALC_MARCH)
+    {
+      if (cal->mday > 7)
+	{
+	  // There must have been a Sunday
+	  return 1;
+	}
+      
+      // Otherwise, what day is it?
+      timecalc_aux_t aux;
+      int rv;
+      int first_day;
+
+      rv = utc->aux(utc, cal, &aux);
+      if (rv) { return rv; }
+
+      // Otherwise ..
+      if (aux.wday == 0)
+	{
+	  // It's today! Any time after 0100 GMT or 0200 BST
+	  if (cal->system == TIMECALC_SYSTEM_UTC && cal->hour >= 1)
+	    {
+	      return 1;
+	    }
+	  if (cal->system == TIMECALC_SYSTEM_BST && cal->hour >= 2)
+	    {
+	      return 1;
+	    }
+	}
+
+      first_day = aux.wday - (cal->mday -1);
+      if (first_day < 0)
+	{
+	  // there's been a sunday.
+	  return 1;
+	}
+
+      // Not been a sunday or it's too early.
+      return 0;
+    }
+
+  if (cal->month == TIMECALC_OCTOBER)
+    {
+      if (cal->mday < (31-7))
+	{
+	  // There must be a sunday to come
+	  return 1;
+	}
+      
+      timecalc_aux_t aux;
+      int rv;
+      int first_day;
+      
+      rv = utc->aux(utc, cal, &aux);
+      if (rv) { return rv; }
+
+      if (aux.wday == 0)
+	{
+	  // It's today!
+	  
+	  if (cal->system == TIMECALC_SYSTEM_UTC && cal->hour >= 1)
+	    {
+	      return 0;
+	    }
+	  if (cal->system == TIMECALC_SYSTEM_UTC && cal->hour >= 2)
+	    {
+	      return 0;
+	    }
+	}
+
+      // Is there going to be a Sunday?
+      if ((7-aux.wday) <= (31-aux.mday))
+	{
+	  // Yes.
+	  return 1;
+	}
+	  
+      // Otherwise, no
+      return 0;      
+    }
+
+
+
+  return TIMECALC_ERR_INTERNAL_ERROR;
+}
+
 
 static void do_knockdown(timecalc_calendar_t *io_diff, const timecalc_calendar_t *offset, int *do_ls)  
 {
