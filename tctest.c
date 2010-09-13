@@ -52,6 +52,7 @@ static void faili(const timecalc_interval_t *a,
 static void test_gtai(void);
 static void test_interval(void);
 static void test_calendar(void);
+static void test_utc(void);
 
 
 int main(int argn, char *args[])
@@ -70,9 +71,11 @@ int main(int argn, char *args[])
   printf("-- test_calendar() \n");
   test_calendar();
 
-
   printf(" -- test_gtai()\n");
   test_gtai();
+
+  printf(" -- test_utc() \n");
+  test_utc();
 
   return 0;
 }
@@ -271,7 +274,6 @@ static void test_gtai(void)
     char buf[128];
 
     timecalc_calendar_sprintf(buf, 128, &a);
-    printf("a = %s\n", buf);
 
     // 1st Sept 2010 is a Wednesday
     rv = gtai->aux(gtai, &a, &aux);
@@ -309,6 +311,167 @@ static void test_gtai(void)
   
   rv = timecalc_zone_dispose(&gtai);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose gtai");
+}
+
+
+static void test_utc(void)
+{
+  timecalc_zone_t *utc;
+  static const char *check_utc_desc = "UTC";
+  const char *utc_desc;
+  int rv;
+  char buf[128];
+  timecalc_calendar_t tgt;
+
+    
+  utc_desc = timecalc_describe_system(TIMECALC_SYSTEM_UTC);
+  ASSERT_STRINGS_EQUAL(utc_desc, check_utc_desc, "UTC descriptions don't match");
+
+  rv = timecalc_zone_new(TIMECALC_SYSTEM_UTC,
+			  &utc, NULL);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create UTC timezone");
+
+
+  // Convert 1 Jan 1900 to UTC.
+  {
+    static timecalc_calendar_t a = 
+      { 1900, TIMECALC_JANUARY, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static const char *result = "1900-01-01 00:00:00.000000000 UTC";
+
+    // Raise to UTC
+    rv = timecalc_zone_raise(utc, &tgt, &a);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Raise failed");
+
+    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Conversion to UTC failed  [1]");
+  }
+
+  {    
+    // Jan 1 1972 00:00:10 is actually UTC 08:<something> because
+    // UTC references itself.
+    static timecalc_calendar_t b = 
+      { 1972, TIMECALC_JANUARY, 1, 0, 0, 9, 100000, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static const char *result = "1972-01-01 00:00:07.577282000 UTC";
+
+    rv = timecalc_zone_raise(utc, &tgt, &b);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Raise failed [2]");
+    
+    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Conversion to UTC failed [2]");
+  }
+  
+
+  {    
+    // Jan 1 1972 00:00:12 is in fact earlier because it acquires the 10s
+    // offset applied at the start of 1972.
+    // UTC references itself.
+    static timecalc_calendar_t b = 
+      { 1972, TIMECALC_JANUARY, 1, 0, 0, 12, 100000, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static const char *result = "1972-01-01 00:00:02.000100000 UTC";
+
+    rv = timecalc_zone_raise(utc, &tgt, &b);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Raise failed [2.5]");
+    
+    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Conversion to UTC failed [2.5]");
+  }
+  
+
+  {    
+    // According to today's bulletin C, UTC-TAI = -34s (ie. TAI is 34s ahead)
+    // UTC references itself.
+    static timecalc_calendar_t b = 
+      { 2010, TIMECALC_SEPTEMBER, 2, 19, 56, 12, 000000, TIMECALC_SYSTEM_UTC };
+    static const char *result = "2010-09-02 19:56:46.000000000 TAI";
+    timecalc_zone_t *z;
+
+    rv = timecalc_zone_lower(utc, &tgt, &z, &b);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Lower failed [3]");
+    
+    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Conversion to TAI failed [3]");
+  }
+
+
+  
+  {
+    // .. and there was a leap second on Dec 31st 1978, @ TAI -17
+    static timecalc_calendar_t b = 
+      { 1979, TIMECALC_JANUARY, 1, 0, 0, 18, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static const char *result = "1978-12-31 23:59:60.000000000 UTC";
+
+    rv = timecalc_zone_raise(utc, &tgt, &b);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Raise failed [4]");
+    
+    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Conversion to UTC failed [4]");
+  }
+
+  {
+    // .. but adding a month to the start of Dec 1978 takes you to Jan 1978
+    static timecalc_calendar_t b = 
+      { 1978, TIMECALC_DECEMBER, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    static const char *result = "1979-01-01 00:00:00.000000000 UTC";
+    static timecalc_calendar_t add = 
+      { 0, 1, 0, 0, 0, 0, 0, TIMECALC_SYSTEM_INVALID };
+
+    rv = timecalc_op_offset(utc, &tgt, TIMECALC_OP_ADD, &b, &add);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [5]");
+    
+    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [5]");
+  }
+  {
+    // Though adding 31 * 86400 gives you 23:59:60 because of the leap second.
+    static timecalc_calendar_t b = 
+      { 1978, TIMECALC_DECEMBER, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    static const char *result = "1978-12-31 23:59:60.000000000 UTC";
+    static timecalc_calendar_t add = 
+      { 0, 0, 0, 0, 0, 31 * 86400, 0, TIMECALC_SYSTEM_INVALID };
+
+    rv = timecalc_op_offset(utc, &tgt, TIMECALC_OP_ADD, &b, &add);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [6]");
+    
+    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [6]");
+  }
+  
+  {
+    // Adding 1s to 23:59:58 gives you 23:59:59
+    static timecalc_calendar_t b = 
+      { 1978, TIMECALC_DECEMBER, 31, 23, 59, 58, 0, TIMECALC_SYSTEM_UTC };
+    static const char *result = "1978-12-31 23:59:59.000000000 UTC";
+    static timecalc_calendar_t add = 
+      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_INVALID };
+
+    rv = timecalc_op_offset(utc, &tgt, TIMECALC_OP_ADD, &b, &add);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [7]");
+    
+    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [7]");
+  }
+
+  {
+    // Adding 3s gives 0:00:01
+    static timecalc_calendar_t b = 
+      { 1978, TIMECALC_DECEMBER, 31, 23, 59, 58, 0, TIMECALC_SYSTEM_UTC };
+    static const char *result = "1979-01-01 00:00:00.000000000 UTC";
+    static timecalc_calendar_t add = 
+      { 0, 0, 0, 0, 0, 3, 0, TIMECALC_SYSTEM_INVALID };
+
+    rv = timecalc_op_offset(utc, &tgt, TIMECALC_OP_ADD, &b, &add);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Offset add failed [8]");
+    
+    rv = timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [8]");
+  }
+
+ 
+
+
+
+  rv = timecalc_zone_dispose(&utc);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose UTC");
 }
 
 static void faili(const timecalc_interval_t *a,

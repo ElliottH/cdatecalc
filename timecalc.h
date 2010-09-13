@@ -201,6 +201,9 @@ typedef struct timecalc_zone_struct
 {
   //! 'user' handle.
   void *handle;
+  
+  //! The system this zone handles.
+  int system;
 
   /** Initialize this zone structure; mainly used internally */
   int (*init)(struct timecalc_zone_struct *self, void *arg);
@@ -231,6 +234,12 @@ typedef struct timecalc_zone_struct
    *  If leap_second = 1, there is an extra leap second just after
    *   the current one - remember to add it. This rather odd convention
    *   makes timecalc_zone_convert() faster.
+   *
+   *  We inspect src->system to decide what time zone the source
+   *   is represented in. Time zones should normally be able to handle
+   *   either their calendar timezone (that returned by lower_zone()) or
+   *   their own. In either case, the value returned is the amount one
+   *   adds to get from the calendar timezone to self->system.
    */
   int (*cal_offset)(struct timecalc_zone_struct *self,
 		    timecalc_calendar_t *offset,
@@ -265,6 +274,12 @@ typedef struct timecalc_zone_struct
    */
   int (*epoch)(struct timecalc_zone_struct *self,
 	       timecalc_calendar_t *epoch);
+
+  /** Obtain a pointer to 'the next zone down' in the heirarchy,
+   *   if there is one 
+   */
+  int (*lower_zone)(struct timecalc_zone_struct *self,
+		    struct timecalc_zone_struct **next);
 
 } timecalc_zone_t;
 
@@ -364,16 +379,36 @@ int timecalc_op_fieldwise(struct timecalc_zone_struct *zone,
 			  const timecalc_calendar_t *b);
 
 
+/** "Raise" a date from the underlying calendar type of a DST 
+ *  timezone to a full member of that timezone (so e.g. a Gregorian
+ *  TAI to UTC)
+ */
+int timecalc_zone_raise(timecalc_zone_t *zone,
+			timecalc_calendar_t *dest,
+			const timecalc_calendar_t *src);
+
+/** "Lower" a date from a timezone to its immediate underlying
+ *  calendar type.
+ *
+ *  Note that raise will raise to the current zone. Lower will lower
+ *   one zone.
+ */
+int timecalc_zone_lower(timecalc_zone_t *zone,
+			timecalc_calendar_t *dest,
+			timecalc_zone_t **lzone,
+			const timecalc_calendar_t *src);
+
+
 /** Convert one date to another with the aid of an epoch; the actual
  *  epoch doesn't really matter except that most timezones use some
  *  kind of loop so keeping the epoch close to the dates will 
  *  make your calculation faster.
  */
-int timecalc_zone_convert(timecalc_calendar_t *dest,
-			  timecalc_zone_t *from,
-			  timecalc_zone_t *to,
-			  const timecalc_calendar_t *src,
-			  const timecalc_calendar_t *epoch);
+//int timecalc_zone_convert(timecalc_calendar_t *dest,
+//			  timecalc_zone_t *from,
+//			  timecalc_zone_t *to,
+//			  const timecalc_calendar_t *src,
+//			  const timecalc_calendar_t *epoch);
 			  
 
 /** Retrieve a timezone for a given zone code 
