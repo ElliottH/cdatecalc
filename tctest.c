@@ -51,6 +51,7 @@ static void faili(const timecalc_interval_t *a,
 
 static void test_gtai(void);
 static void test_interval(void);
+static void test_calendar(void);
 
 
 int main(int argn, char *args[])
@@ -65,11 +66,45 @@ int main(int argn, char *args[])
 
   printf("-- test_interval() \n");
   test_interval();
+  
+  printf("-- test_calendar() \n");
+  test_calendar();
+
 
   printf(" -- test_gtai()\n");
   test_gtai();
 
   return 0;
+}
+
+static void test_calendar(void)
+{
+  const static timecalc_calendar_t t1 = 
+    { 1990, 0, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+
+  const static timecalc_calendar_t t2 = 
+    { 1991, 0, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+  const static timecalc_calendar_t t3 = 
+    { 1990, 0, 1, 0, 0, 0, -3, TIMECALC_SYSTEM_GREGORIAN_TAI };
+  const static char *rep = "1990-01-01 00:00:00.000000000 TAI";
+  char buf[128];
+  int rv;
+
+  rv = timecalc_calendar_cmp(&t1, &t2);
+  ASSERT_INTEGERS_EQUAL(-1, rv, "cmp says t1 is not < t2");
+  
+  rv = timecalc_calendar_cmp(&t2, &t1);
+  ASSERT_INTEGERS_EQUAL(1, rv, "cmp says t2 is not < t1");
+
+  rv = timecalc_calendar_cmp(&t3, &t1);
+  ASSERT_INTEGERS_EQUAL(-1, rv, "cmp says t3 is not < t1");
+  
+  rv = timecalc_calendar_cmp(&t1, &t1);
+  ASSERT_INTEGERS_EQUAL(0, rv, "cmp says t1 != t1");
+  
+  rv = timecalc_calendar_sprintf(buf, 128, &t1);
+  ASSERT_INTEGERS_EQUAL(rv, 33, "Wrong length for sprintf(t1)");
+  ASSERT_STRINGS_EQUAL(buf, rep, "Wrong representation for t1");
 }
 
 
@@ -124,10 +159,78 @@ static void test_interval(void)
 
 static void test_gtai(void)
 {
+  timecalc_zone_t *gtai;
+  static const char *check_gtai_desc = "TAI";
+  const char *gtai_desc;
+  static timecalc_calendar_t gtai_epoch = 
+    { 1958, 0, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+  timecalc_calendar_t a, b;
+  int rv;
+  char buf[128];
+
   
+  gtai_desc = timecalc_describe_system(TIMECALC_SYSTEM_GREGORIAN_TAI);
+  ASSERT_STRINGS_EQUAL(gtai_desc, check_gtai_desc, "GTAI descriptions don't match");
+
+  rv = timecalc_zone_new(TIMECALC_SYSTEM_GREGORIAN_TAI,
+			 &gtai, NULL);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create gtai zone");
+  rv = gtai->epoch(gtai, &a);
+
+  rv = timecalc_calendar_cmp(&a, &gtai_epoch);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Epoch does not compare equal to prototype");
+
+  // Check the epoch
+  rv = gtai->epoch(gtai, &a);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot get gtai epoch");
+  rv = timecalc_calendar_cmp(&a, &gtai_epoch);
+  ASSERT_INTEGERS_EQUAL(rv, 0, "gtai epoch isn't what we expected");
+
+  // Add a year
+  {
+    timecalc_interval_t ti;
+    static const char *check = "1959-01-01 00:00:00.000000000 TAI";
+    static timecalc_calendar_t check_tm = 
+      { 1959, 0, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
 
 
+    ti.ns = 0;
+    ti.s = (1 * 365 * 86400);
+    rv = timecalc_zone_add(gtai, &b, &a, &ti);
+    ASSERT_INTEGERS_EQUAL(0, rv, "add() failed");
+    rv = timecalc_calendar_sprintf(buf, 128, &b);
+    ASSERT_STRINGS_EQUAL(buf, check,
+			 "Adding 1 year of seconds to epoch");
+    //printf("b = %s\n", buf);
+    // timecalc_calendar_sprintf(buf, 128, &check_tm);
+    //printf("check = %s\n", buf);
+    rv = timecalc_calendar_cmp(&b, &check_tm);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Adding a year of seconds doesn't lead to year + 1");
+  }
 
+
+  // Now, 1960 was a leap year. If we add 3 * 365 * 86400, we should get december 31st.
+  {
+    timecalc_interval_t ti;
+    static const char *check1 = "1960-12-31 00:00:00.000000000 TAI";
+    
+    ti.ns = 0;
+    ti.s = (3 * 365 * 86400);
+    rv = timecalc_zone_add(gtai, 
+			   &b,
+			   &a,
+			   &ti);
+    ASSERT_INTEGERS_EQUAL(0, rv, "add() failed");
+    rv = timecalc_calendar_sprintf(buf, 128, 
+				   &b);
+    ASSERT_STRINGS_EQUAL(buf, check1,
+			 "Adding 2 years of seconds to epoch failed.");
+  }
+
+
+  
+  rv = timecalc_zone_dispose(&gtai);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose gtai");
 }
 
 static void faili(const timecalc_interval_t *a,

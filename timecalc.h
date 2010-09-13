@@ -67,6 +67,11 @@
  *
  */
 
+/** A sentinel to ensure that this invalid calendar date doesn't
+ *  accidentally succeed in being used in calculations
+ */
+#define TIMECALC_SYSTEM_INVALID          -1
+
 /** TAI, Gregorian calendar */
 #define TIMECALC_SYSTEM_GREGORIAN_TAI     0 
 

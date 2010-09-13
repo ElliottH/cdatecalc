@@ -62,7 +62,7 @@ static inline int is_gregorian_leap_year(int yr)
   //   divisible by 400 are still leap years."
   return (!(yr%400) ? 
 	  1 : 
-	  (!(yr%4) ? !(yr%100) : 0));
+	  (!(yr%4) ? !!(yr%100) : 0));
 }
 
 static int gregorian_months[] = 
@@ -238,7 +238,7 @@ int timecalc_calendar_sprintf(char *buf,
   return snprintf(buf, n, 
 		  "%04d-%02d-%02d %02d:%02d:%02d.%09ld %s",
 		  date->year,
-		  date->month,
+		  date->month+1,
 		  date->mday,
 		  date->hour,
 		  date->minute,
@@ -419,19 +419,22 @@ static int system_gtai_normalise(struct timecalc_zone_struct *self,
       while (io_cal->month > 11)
 	{
 	  ++io_cal->year; 
-	  io_cal->month -= 11;
+	  io_cal->month -= 12;
 	}
       
       int nr_mday;
       
       // Adjust mday
       nr_mday = (gregorian_months[io_cal->month]);
+
       if (io_cal->month == 1 && 
 	  is_gregorian_leap_year(io_cal->year))
 	{
 	  ++nr_mday;
 	}
-      if (io_cal->mday >= nr_mday)
+
+
+      if (io_cal->mday > nr_mday)
 	{
 	  io_cal->mday -= nr_mday;
 	  ++io_cal->month;
