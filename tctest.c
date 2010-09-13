@@ -332,8 +332,7 @@ static void test_utc(void)
   utc_desc = timecalc_describe_system(TIMECALC_SYSTEM_UTC);
   ASSERT_STRINGS_EQUAL(utc_desc, check_utc_desc, "UTC descriptions don't match");
 
-  rv = timecalc_zone_new(TIMECALC_SYSTEM_UTC,
-			 &utc, 0, NULL);
+  rv = timecalc_utc_new(&utc);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create UTC timezone");
 
   // First off, we need to check a few things. 
@@ -590,7 +589,7 @@ static void test_utcplus(void)
   utcminus_desc = timecalc_describe_system(sys2);
   ASSERT_STRINGS_EQUAL(utcminus_desc, check_utcminus_dest, "UTC- descriptions don't match");
 
-  rv = timecalc_zone_new(sys, &utcplus, 0, NULL);
+  rv = timecalc_utcplus_new(&utcplus, 2*60 + 23);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create UTC+ timezone");
   
   

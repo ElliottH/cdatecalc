@@ -433,9 +433,19 @@ int timecalc_zone_new(int system,
 		      int i,
 		      void *n);
 
-
 /** Dispose of a zone */
 int timecalc_zone_dispose(timecalc_zone_t **io_zone);
+
+/** Easy creation functions for common time zones */
+
+/** Create a new UTC zone: dispose() is overridden to dispose of
+ *  any sub-zones
+ */
+int timecalc_utc_new(timecalc_zone_t **ozone);
+
+int timecalc_utcplus_new(timecalc_zone_t **ozone, int offset);
+int timecalc_bst_new(timecalc_zone_t **ozone);
+
 
 #endif
 

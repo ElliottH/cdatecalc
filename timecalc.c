@@ -25,6 +25,9 @@
 static const char *dbg_pdate(const timecalc_calendar_t *cal);
 
 
+/** Dispose everyone, all the way down the tree */
+static int chain_dispose(struct timecalc_zone_struct *self);
+
 static int null_init(struct timecalc_zone_struct *self, int arg_i, void *arg_n);
 static int null_dispose(struct timecalc_zone_struct *self);
 
@@ -237,8 +240,6 @@ static utc_lookup_entry_t utc_lookup_table[] =
 static int utc_init(struct timecalc_zone_struct *self,
 		    int arg_i, void *arg_n);
 
-static int utc_dispose(struct timecalc_zone_struct *self);
-
 
 //static int system_utc_diff(struct timecalc_zone_struct *self,
 //			   timecalc_interval_t *ival,
@@ -274,7 +275,7 @@ static timecalc_zone_t s_system_utc =
     NULL,
     TIMECALC_SYSTEM_UTC,
     utc_init,
-    utc_dispose,
+    null_dispose,
     //    system_utc_diff,
     system_utc_offset,
     system_utc_op,
@@ -292,7 +293,6 @@ static timecalc_zone_t s_system_utc =
 
 
 static int utc_plus_init(struct timecalc_zone_struct *self, int arg_i, void *arg_n);
-static int utc_plus_dispose(struct timecalc_zone_struct *self);
 
 #if 0
 static int system_utcplus_diff(struct timecalc_zone_struct *self,
@@ -327,7 +327,7 @@ static timecalc_zone_t s_system_utcplus =
     NULL,
     TIMECALC_SYSTEM_UTCPLUS_BASE,
     utc_plus_init,
-    utc_plus_dispose,
+    null_dispose,
     system_utcplus_offset,
     system_utcplus_op,
     system_utcplus_aux,
@@ -338,7 +338,6 @@ static timecalc_zone_t s_system_utcplus =
 
 static int bst_init(struct timecalc_zone_struct *self,
 		    int iarg, void *parg);
-static int bst_dispose(struct timecalc_zone_struct *self);
 
 #if 0
 static int system_bst_diff(struct timecalc_zone_struct *self,
@@ -373,7 +372,7 @@ static timecalc_zone_t s_system_bst =
     NULL,
     TIMECALC_SYSTEM_BST,
     bst_init,
-    bst_dispose,
+    null_dispose,
     system_bst_offset,
     system_bst_op,
     system_bst_aux,
@@ -446,6 +445,8 @@ int timecalc_interval_subtract(timecalc_interval_t *result,
   return 0;
 }
 
+
+
 int timecalc_zone_new(int system,
 		      timecalc_zone_t **out_zone,
 		      int arg_i,
@@ -468,6 +469,9 @@ int timecalc_zone_new(int system,
       break;
     case TIMECALC_SYSTEM_UTC:
       prototype = &s_system_utc;
+      break;
+    case TIMECALC_SYSTEM_BST:
+      prototype = &s_system_bst;
       break;
     }
   if (prototype == NULL)
@@ -508,6 +512,69 @@ int timecalc_zone_dispose(timecalc_zone_t **io_zone)
   (*io_zone) = NULL;
   return rv;
 }
+
+int timecalc_utc_new(timecalc_zone_t **ozone)
+{
+  int rv;
+  timecalc_zone_t *z = NULL;
+  
+  rv = timecalc_zone_new(TIMECALC_SYSTEM_GREGORIAN_TAI, &z,
+			 0, NULL);
+  if (rv) { return rv; }
+
+  rv = timecalc_zone_new(TIMECALC_SYSTEM_UTC, ozone, 0, z);
+  if (rv) 
+    {
+      z->dispose(z);
+    }
+  else
+    {
+      (*ozone)->dispose = chain_dispose;
+    }
+
+  return rv;
+}
+
+int timecalc_utcplus_new(timecalc_zone_t **ozone, int offset)
+{
+  int rv;
+  timecalc_zone_t *z = NULL;
+
+  rv = timecalc_utc_new(&z);
+  if (rv) { return rv; }
+
+  rv = timecalc_zone_new(TIMECALC_SYSTEM_UTCPLUS_ZERO + offset, ozone, 0, z);
+  if (rv) 
+    {
+      z->dispose(z);
+    }
+  else
+    {
+      (*ozone)->dispose = chain_dispose;
+    }
+  return rv;
+}
+
+int timecalc_bst_new(timecalc_zone_t **ozone)
+{
+  int rv;
+  timecalc_zone_t *z = NULL;
+
+  rv = timecalc_utc_new(&z);
+  if (rv) { return rv; }
+
+  rv = timecalc_zone_new(TIMECALC_SYSTEM_BST, ozone, 0, z);
+  if (rv) 
+    {
+      z->dispose(z);
+    }
+  else
+    {
+      (*ozone)->dispose = chain_dispose;
+    }
+  return rv;
+}
+
 
 int timecalc_calendar_cmp(const timecalc_calendar_t *a,
 			  const timecalc_calendar_t *b)
@@ -797,6 +864,16 @@ static int null_init(struct timecalc_zone_struct *self, int arg_i, void *arg_n)
 static int null_dispose(struct timecalc_zone_struct *self)
 {
   return 0;
+}
+
+static int chain_dispose(struct timecalc_zone_struct *self)
+{
+  timecalc_zone_t *z = (timecalc_zone_t *)self->handle;
+  int rv;
+
+  rv = z->dispose(z);
+  free(z);
+  return rv;
 }
 
 /* -------------------- Gregorian TAI ---------------- */
@@ -1417,24 +1494,10 @@ static int system_utc_epoch(struct timecalc_zone_struct *self,
 static int utc_init(struct timecalc_zone_struct *self,
 		    int arg_i, void *arg_n)
 {
-  int rv;
-  timecalc_zone_t *q = NULL;
-
-  rv = timecalc_zone_new(TIMECALC_SYSTEM_GREGORIAN_TAI, &q, 0, NULL);
-  if (rv) { return rv; }
-  self->handle = (void *)q;
+  self->handle = (void *)arg_n;
   return 0;
 }
 
-static int utc_dispose(struct timecalc_zone_struct *self)
-{
-  timecalc_zone_t *q = (timecalc_zone_t *)self->handle;
-  int rv;
-
-  rv = timecalc_zone_dispose(&q);
-  self->handle = NULL;
-  return rv;
-}
 
 static int system_utc_lower_zone(struct timecalc_zone_struct *self,
 				 struct timecalc_zone_struct **next)
@@ -1449,25 +1512,10 @@ static int system_utc_lower_zone(struct timecalc_zone_struct *self,
 
 static int utc_plus_init(struct timecalc_zone_struct *self, int arg_i, void *arg_n)
 {
-  int rv;
-  timecalc_zone_t *q = NULL;
-
-  // system is already set.
-  rv = timecalc_zone_new(TIMECALC_SYSTEM_UTC, &q, 0, NULL);
-  if (rv) { return rv; }
-  self->handle = (void *)q;
+  self->handle = (void *)arg_n;
   return 0;
 }
 
-static int utc_plus_dispose(struct timecalc_zone_struct *self)
-{
-  timecalc_zone_t *q = (timecalc_zone_t *)self->handle;
-  int rv;
-
-  rv = timecalc_zone_dispose(&q);
-  self->handle = NULL;
-  return rv;
-}
 #if 0
 static int system_utcplus_diff(struct timecalc_zone_struct *self,
 			       timecalc_interval_t *ival,
@@ -1624,30 +1672,16 @@ static const char *dbg_pdate(const timecalc_calendar_t *cal)
  *  - In autumn, the clocks go back 1h at 0200 BST on the last Sunday in October.
  */
 
-static int is_bst(timecalc_calendar_t *cal);
+static int is_bst(struct timecalc_zone_struct *z, const  timecalc_calendar_t *cal);
 
 
 static int bst_init(struct timecalc_zone_struct *self,
 	     int iarg, void *parg)
 {
-  int rv;
-  timecalc_zone_t *q = NULL;
-
-  rv = timecalc_zone_new(TIMECALC_SYSTEM_UTC, &q, 0, NULL);
-  if (rv) { return rv; }
-  self->handle = (void *)q;
+  self->handle = parg;
   return 0;
 }
 
-static int bst_dispose(struct timecalc_zone_struct *self)
-{
-  timecalc_zone_t *q = (timecalc_zone_t *)self->handle;
-  int rv;
-
-  rv = timecalc_zone_dispose(&q);
-  self->handle = NULL;
-  return rv;
-}
 
 static int system_bst_offset(struct timecalc_zone_struct *self,
 			     timecalc_calendar_t *offset,
@@ -1663,7 +1697,7 @@ static int system_bst_offset(struct timecalc_zone_struct *self,
   if (bst)
     {
       // One hour ahead
-      offset.hour = 1;
+      offset->hour = 1;
     }
   return 0;
 }
@@ -1728,7 +1762,7 @@ static int system_bst_aux(struct timecalc_zone_struct *self,
   if (rv) { return rv; }
 
   // Is it DST?
-  aux->isdst = is_bst(utc, calc);
+  aux->is_dst = is_bst(utc, calc);
   return 0;
 }
 
@@ -1748,7 +1782,7 @@ static int system_bst_lower_zone(struct timecalc_zone_struct *self,
 }
 
 
-static int is_bst(struct timecalc_zone_struct *utc, timecalc_calendar_t *cal)
+static int is_bst(struct timecalc_zone_struct *utc, const timecalc_calendar_t *cal)
 {
   // The date actually doesn't matter so ..
   if (cal->month < TIMECALC_MARCH || cal->month > TIMECALC_OCTOBER)
@@ -1772,7 +1806,7 @@ static int is_bst(struct timecalc_zone_struct *utc, timecalc_calendar_t *cal)
 	}
       
       // Otherwise, what day is it?
-      timecalc_aux_t aux;
+      timecalc_calendar_aux_t aux;
       int rv;
       int first_day;
 
@@ -1812,10 +1846,9 @@ static int is_bst(struct timecalc_zone_struct *utc, timecalc_calendar_t *cal)
 	  return 1;
 	}
       
-      timecalc_aux_t aux;
+      timecalc_calendar_aux_t aux;
       int rv;
-      int first_day;
-      
+
       rv = utc->aux(utc, cal, &aux);
       if (rv) { return rv; }
 
@@ -1834,7 +1867,7 @@ static int is_bst(struct timecalc_zone_struct *utc, timecalc_calendar_t *cal)
 	}
 
       // Is there going to be a Sunday?
-      if ((7-aux.wday) <= (31-aux.mday))
+      if ((7-aux.wday) <= (31-cal->mday))
 	{
 	  // Yes.
 	  return 1;
