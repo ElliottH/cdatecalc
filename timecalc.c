@@ -14,6 +14,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define DEBUG_UTC 0
+#define DEBUG_UTCPLUS 0
+#define DEBUG_BST 1
+
 #define ONE_MILLION 1000000
 #define ONE_BILLION (ONE_MILLION * 1000)
 
@@ -695,9 +699,19 @@ int timecalc_interval_sgn(const timecalc_interval_t *a)
 }
 
 
-const char *timecalc_describe_system(const int system)
+const char *timecalc_describe_system(const int sys)
 {
   static char buf[128];
+  int system = sys;
+  const char *modifier = "";
+
+  if (system & TIMECALC_SYSTEM_TAINTED)
+    {
+      modifier = "*";
+      system &= ~TIMECALC_SYSTEM_TAINTED;
+    }
+
+
 
   if (system >= TIMECALC_SYSTEM_UTCPLUS_BASE && 
       system <= (TIMECALC_SYSTEM_UTCPLUS_BASE + 1440))
@@ -705,11 +719,11 @@ const char *timecalc_describe_system(const int system)
       int mins = UTCPLUS_SYSTEM_TO_MINUTES(system);
       if (mins > 0)
 	{
-	  sprintf(buf, "UTC+%02d%02d", (mins/60), (mins%60));
+	  sprintf(buf, "UTC+%02d%02d%s", (mins/60), (mins%60), modifier);
 	}
       else
 	{
-	  sprintf(buf, "UTC-%02d%02d", (-mins/60), (-mins)%60);
+	  sprintf(buf, "UTC-%02d%02d%s", (-mins/60), (-mins)%60, modifier);
 	}
       return buf;
     }
@@ -718,18 +732,23 @@ const char *timecalc_describe_system(const int system)
   switch (system)
     {
     case TIMECALC_SYSTEM_GREGORIAN_TAI:
-      return "TAI";
+      sprintf(buf, "TAI%s",modifier);
       break;
     case TIMECALC_SYSTEM_UTC:
-      return "UTC";
+      sprintf(buf, "UTC%s", modifier);
       break;
     case TIMECALC_SYSTEM_OFFSET:
-      return "OFF";
+      sprintf(buf, "OFF%s", modifier);
+      break;
+    case TIMECALC_SYSTEM_BST:
+      sprintf(buf, "BST%s", modifier);
       break;
     default:
       return "UNKNOWN";
       break;
     }
+
+  return buf;
 }
 
 
@@ -1241,7 +1260,10 @@ static int system_utc_offset(struct timecalc_zone_struct *self,
     }
 
 
+#if DEBUG_UTC
   printf("cal_offset() %s \n", dbg_pdate(src));
+#endif
+
   
   // First entry in the table is a sentinel.
   for (i = 1 ;i < nr_entries; ++i)
@@ -1262,10 +1284,16 @@ static int system_utc_offset(struct timecalc_zone_struct *self,
 	  off.ns = utc_lookup_table[i].utctai.ns;
 	  off.second = utc_lookup_table[i].utctai.s;
 
+#if DEBUG_UTC
 	  printf("src = %s\n", dbg_pdate(src));
+#endif
+
 	  rv = self->op(self, &utcsrc, src, &off, TIMECALC_OP_ZONE_ADD);
 	  if (rv) { return rv; }
+#if DEBUG_UTC
 	  printf("opout = %s\n", dbg_pdate(&utcsrc));
+#endif
+
 	}
 
       // We synthetically zero utcsrc.ns so that the compare function
@@ -1284,8 +1312,11 @@ static int system_utc_offset(struct timecalc_zone_struct *self,
 
       cmp_value = timecalc_calendar_cmp(&to_cmp, &current->when);
 
+#if DEBUG_UTC
       printf("cmp[%d] = %d (%s)\n", i, cmp_value, dbg_pdate(&utcsrc));
       printf("          current: %s \n", dbg_pdate(&current->when));
+#endif
+
       
       // If we are before this entry, the previous entry applies
       if (cmp_value < 0)
@@ -1336,7 +1367,10 @@ static int system_utc_offset(struct timecalc_zone_struct *self,
   dest->second += iv.s;
   dest->ns += iv.ns; 
   dest->system = TIMECALC_SYSTEM_OFFSET;
+#if DEBUG_UTC
   printf("utc_offset: dest = %s\n", dbg_pdate(dest));
+#endif
+
 
   return 0;
 }
@@ -1383,7 +1417,10 @@ static int system_utc_op(struct timecalc_zone_struct *self,
     {
       // This is a zone addition and therefore particularly easy.
       rv = gtai->op(gtai, &tmp, src, offset, TIMECALC_OP_ZONE_ADD);
+#if DEBUG_UTC
       printf("utc_zone_op (for zone addition) rv = %d result = %s\n", rv, dbg_pdate(&tmp));
+#endif
+
       if (rv) { return rv; }
     }
   else
@@ -1416,7 +1453,10 @@ static int system_utc_op(struct timecalc_zone_struct *self,
       
       rv = gtai->op(gtai, &tmp, &dst_value, &dst_diff, op);
       if (rv < 0) { return rv; }
+#if DEBUG_UTC
       printf("-- utc_zone_op: Came up with %s \n", dbg_pdate(&tmp));
+#endif
+
     }
   
   // By definition, tmp is now either a leap second or not. Note that we 
@@ -1449,7 +1489,10 @@ static int system_utc_op(struct timecalc_zone_struct *self,
 
     saved_ns = r.ns; r.ns = 0;
 
+#if DEBUG_UTC
     printf("Searching for leap second after: %s \n", dbg_pdate(&r));
+#endif
+
     
     for (i = UTC_LOOKUP_MIN_LEAP_SECOND; i < nr_entries; ++i)
       {
@@ -1457,15 +1500,21 @@ static int system_utc_op(struct timecalc_zone_struct *self,
 	int cmp_value;
 
 	cmp_value = timecalc_calendar_cmp(&r, &current->when);
+#if DEBUG_UTC
 	printf("i = %d, cmp = %d \n", i, cmp_value);
+#endif
+
 	if (!cmp_value)
 	  {
 	    // This is the leap second just after the calculated time.
 	    ++r.second;
 	    r.ns = saved_ns; // Restore nanoseconds.
 	    memcpy(dest, &r, sizeof(timecalc_calendar_t));
+#if DEBUG_UTC
 	    printf("result was leap second : %s\n", 
 		   dbg_pdate(dest));
+#endif
+
 	    return 0;
 	  }
 	if (cmp_value < 0)
@@ -1478,8 +1527,11 @@ static int system_utc_op(struct timecalc_zone_struct *self,
 
   // Not a leap second.
   memcpy(dest, &tmp, sizeof(timecalc_calendar_t));
+#if DEBUG_UTC
   printf("result was not leap second: %s \n", 
 	 dbg_pdate(dest));
+#endif
+
   return 0;
 }
 
@@ -1678,11 +1730,17 @@ static int system_utcplus_op(struct timecalc_zone_struct *self,
   memcpy(&srcx, src, sizeof(timecalc_calendar_t));
   srcx.system = utc->system;
 
+#if DEBUG_UTCPLUS
   printf("utcplus_op: src = %s\n", dbg_pdate(src));
+#endif
+
   rv = utc->op(utc, &adj, &srcx, &diff, TIMECALC_OP_COMPLEX_ADD);
   if (rv) { return rv; }
   
+#if DEBUG_UTCPLUS
   printf("utcplus_op: adj = %s \n", dbg_pdate(&adj));
+#endif
+
 
   // Now perform whatever operation was originally required.
   rv = utc->op(utc, &tgt, &adj, offset, op);
@@ -1704,7 +1762,10 @@ static int system_utcplus_op(struct timecalc_zone_struct *self,
       }
     
 
+#if DEBUG_UTCPLUS
     printf("utcplus_op: tgt = %s \n", dbg_pdate(&tgt));
+#endif
+
     rv = utc->op(utc, dest, &tgt, &diff, TIMECALC_OP_COMPLEX_ADD);
     if (rv) { return rv; }
     
@@ -1712,7 +1773,10 @@ static int system_utcplus_op(struct timecalc_zone_struct *self,
   }
   dest->system = self->system;
 
+#if DEBUG_UTCPLUS
   printf("utcplus: dest = %s\n", dbg_pdate(dest));
+#endif
+
 
   return 0;
 }
@@ -1771,6 +1835,12 @@ static int system_bst_offset(struct timecalc_zone_struct *self,
   int bst = is_bst(utc, src);
   if (bst < 0) { return bst; }
   
+
+#if DEBUG_BST
+  printf("system_bst_offset:  %s is_bst? %d \n",
+	 dbg_pdate(src), bst);
+#endif
+
   memset(offset, '\0', sizeof(timecalc_calendar_t));
       
   if (bst)
@@ -1791,26 +1861,40 @@ static int system_bst_op(struct timecalc_zone_struct *self,
   timecalc_calendar_t adj, diff, tgt, srcx;
   int rv;
 
+#if DEBUG_BST
   printf("bst_op: src = %s \n", dbg_pdate(src));
+#endif
+
   rv = self->offset(self, &diff, src);
   if (rv) { return rv; }
+
+  // We're actually going backward here, so ..
+  timecalc_negate(&diff);
 
   memcpy(&srcx, src, sizeof(timecalc_calendar_t));
   srcx.system = utc->system;
   
+#if DEBUG_BST
   printf("bst_op: initial src offset = %s \n", dbg_pdate(&diff));
+#endif
+
 
   rv = utc->op(utc, &adj, &srcx, &diff, TIMECALC_OP_COMPLEX_ADD);
   if (rv) { return rv; }
 
+#if DEBUG_BST
   printf("bst_op: adj = %s \n", dbg_pdate(&adj));
+#endif
+
   rv = utc->op(utc, &tgt, &adj, offset, op);
   if (rv) { return rv; }
   
   rv = self->offset(self, &diff, &tgt);
   if (rv) { return rv; }
+#if DEBUG_BST
   printf("bst_op: initial tgt = %s \n", dbg_pdate(&tgt));
   printf("bst_op: initial tgt offset = %s \n", dbg_pdate(&diff));
+#endif
 
   // Luckily we need not think about this too hard as leap seconds
   // never happen at the same time as BST transitions.
@@ -1826,7 +1910,10 @@ static int system_bst_op(struct timecalc_zone_struct *self,
 
   dest->system = self->system;
 
+#if DEBUG_BST
   printf("bst_op: dest = %s \n", dbg_pdate(dest));
+#endif
+
   return 0;
 }
 
@@ -1867,62 +1954,37 @@ static int is_bst(struct timecalc_zone_struct *utc, const timecalc_calendar_t *c
   if (cal->month < TIMECALC_MARCH || cal->month > TIMECALC_OCTOBER)
     {
       // Can't possibly be BST.
+#if DEBUG_BST
+      printf("is_bst: case A (can't be BST)\n");
+#endif
+
       return 0;
     }
   if (cal->month > TIMECALC_MARCH && cal->month < TIMECALC_OCTOBER)
     {
       // Must be BST
+#if DEBUG_BST
+      printf("is_bst: case B (must be BST)\n");
+#endif
+
       return 1;
     }
 
   // Otherwise ..
-  if (cal->month == TIMECALC_MARCH)
+  if (cal->month == TIMECALC_MARCH || cal->month == TIMECALC_OCTOBER)
     {
-      if (cal->mday > 7)
-	{
-	  // There must have been a Sunday
-	  return 1;
-	}
-      
-      // Otherwise, what day is it?
-      timecalc_calendar_aux_t aux;
-      int rv;
-      int first_day;
+      int is_march = (cal->month == TIMECALC_MARCH);
+      // Luckily, March and October both have 31 days .. 
 
-      rv = utc->aux(utc, cal, &aux);
-      if (rv) { return rv; }
 
-      // Otherwise ..
-      if (aux.wday == 0)
-	{
-	  // It's today! Any time after 0100 GMT or 0200 BST
-	  if (cal->system == TIMECALC_SYSTEM_UTC && cal->hour >= 1)
-	    {
-	      return 1;
-	    }
-	  if (cal->system == TIMECALC_SYSTEM_BST && cal->hour >= 2)
-	    {
-	      return 1;
-	    }
-	}
-
-      first_day = aux.wday - (cal->mday -1);
-      if (first_day < 0)
-	{
-	  // there's been a sunday.
-	  return 1;
-	}
-
-      // Not been a sunday or it's too early.
-      return 0;
-    }
-
-  if (cal->month == TIMECALC_OCTOBER)
-    {
       if (cal->mday < (31-7))
 	{
 	  // There must be a sunday to come
-	  return 1;
+#if DEBUG_BST
+	  printf("  -> There must be a sunday to come.\n");
+#endif
+
+	  return is_march;
 	}
       
       timecalc_calendar_aux_t aux;
@@ -1934,28 +1996,53 @@ static int is_bst(struct timecalc_zone_struct *utc, const timecalc_calendar_t *c
       if (aux.wday == 0)
 	{
 	  // It's today!
-	  
 	  if (cal->system == TIMECALC_SYSTEM_UTC && cal->hour >= 1)
 	    {
-	      return 0;
+#if DEBUG_BST
+	      printf("  -> After UTC 0100: BST has turned on/off.\n");
+#endif
+
+	      return is_march;
 	    }
-	  if (cal->system == TIMECALC_SYSTEM_UTC && cal->hour >= 2)
+	  if (cal->system == TIMECALC_SYSTEM_BST && cal->hour >= 2)
 	    {
-	      return 0;
+#if DEBUG_BST
+	      printf("  -> After BST 0200: BST has turned on/off.\n");
+#endif
+	      return is_march;
 	    }
+
+#if DEBUG_BST
+	  printf("On Sunday, but before BST switch.\n");
+#endif
+
+	  // Otherwise, the switch point occurs after this.
+	  return !is_march;
 	}
+
+#if DEBUG_BST
+      printf("is_bst: aux.wday = %d cal->mday = %d \n", 
+	     aux.wday, cal->mday);
+#endif
 
       // Is there going to be a Sunday?
       if ((7-aux.wday) <= (31-cal->mday))
 	{
 	  // Yes.
-	  return 1;
+#if DEBUG_BST
+	  printf("   -> There will be a sunday after this.\n");
+#endif
+
+	  return !is_march;
 	}
 	  
       // Otherwise, no
-      return 0;      
-    }
+#if DEBUG_BST
+      printf("  -> We're after last sunday in March/October.\n");
+#endif
 
+      return is_march;  
+    }
 
 
   return TIMECALC_ERR_INTERNAL_ERROR;

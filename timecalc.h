@@ -88,6 +88,11 @@
 /** An offset */
 #define TIMECALC_SYSTEM_OFFSET            4
 
+/** ORd into a system to indicate that it is in some way unconventional;
+ *  typically used for rebased systems
+ */
+#define TIMECALC_SYSTEM_TAINTED           0x400000000
+
 
 
 //! You've tried to perform an operation on an unknown system.

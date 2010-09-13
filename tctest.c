@@ -54,6 +54,7 @@ static void test_interval(void);
 static void test_calendar(void);
 static void test_utc(void);
 static void test_utcplus(void);
+static void test_bst(void);
 
 
 int main(int argn, char *args[])
@@ -80,6 +81,9 @@ int main(int argn, char *args[])
 
    printf(" -- test_utcplus() \n");
   test_utcplus();
+
+  printf(" -- test_bst() \n");
+  test_bst();
 
   return 0;
 }
@@ -344,10 +348,6 @@ static void test_gtai(void)
     ASSERT_STRINGS_EQUAL(buf, result, "diff() result compare failed [0]");
   }
 
-  
-
-
-  
   rv = timecalc_zone_dispose(&gtai);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose gtai");
 }
@@ -792,14 +792,193 @@ static void test_utcplus(void)
     ASSERT_STRINGS_EQUAL(buf, result, "+1m result failed [5]");
   }
     
-    
-
-
-
-
   rv = timecalc_zone_dispose(&utcplus);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose UTC+");
 }
+
+static void test_bst(void)
+{
+  timecalc_zone_t *bst;
+  static const char *check_bst_desc = "BST";
+  const char *bst_desc;
+  int rv;
+  timecalc_calendar_t tgt;
+  char buf[128];
+
+  rv = timecalc_bst_new(&bst);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create bst.");
+
+  bst_desc = timecalc_describe_system(TIMECALC_SYSTEM_BST);
+  ASSERT_STRINGS_EQUAL(check_bst_desc, bst_desc, "BST descriptions don't match");
+  
+  // 1 Jan 1980 is basically the same as it always was.
+  {
+    static timecalc_calendar_t a_value = 
+      { 1980, TIMECALC_JANUARY, 1, 01, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    // Remember the UTC - TAI correction .. 
+    static const char *result = "1980-01-01 00:59:41.000000000 BST";
+
+    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise TAI to BST [0]");
+    
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [0]");
+  }
+
+  {
+    static timecalc_calendar_t a_value = 
+      { 1980, TIMECALC_JANUARY, 1, 01, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    // Remember the UTC - TAI correction .. 
+    static const char *result = "1980-01-01 01:00:00.000000000 BST";
+
+    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [1]");
+    
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [1]");
+  }
+
+
+  // In 2010: last sunday in March = 28
+  // last sunday in October = 31
+  printf(" ----------------- \n");
+  {
+    static timecalc_calendar_t a_value = 
+      { 2010, TIMECALC_MARCH, 28, 13, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    static const char *result = "2010-03-28 14:00:00.000000000 BST";
+
+    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [2]");
+    
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [2]");
+  }
+    
+  printf(" ----------------- \n");
+
+  // BST starts at 0100, so 0059 UTC -> 0059 BST
+  {
+    static timecalc_calendar_t a_value = 
+      { 2010, TIMECALC_MARCH, 28, 00, 59, 59, 0, TIMECALC_SYSTEM_UTC };
+    static const char *result = "2010-03-28 00:59:59.000000000 BST";
+
+    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [2]");
+    
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [2]");
+  }
+
+  // 0200 BST is 0100 UTC.
+  {
+    static timecalc_calendar_t a_value = 
+      { 2010, TIMECALC_MARCH, 28, 02, 00, 00, 0, TIMECALC_SYSTEM_BST };
+    static const char *result = "2010-03-28 01:00:00.000000000 UTC";
+    timecalc_zone_t *z;
+
+    rv = timecalc_zone_lower(bst, &tgt, &z, &a_value);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot lower BST to UTC [3]");
+    
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Lower result compare failed [3]");
+  }
+
+  // However, there is 1s of elapsed time between 00:59:59 BST and 02:00:00 BST.
+  {
+    static timecalc_calendar_t a_value = 
+      { 2010, TIMECALC_MARCH, 28, 00, 59, 59, 0, TIMECALC_SYSTEM_BST };
+    static timecalc_calendar_t b_value = 
+      { 2010, TIMECALC_MARCH, 28, 02, 0, 0, 0, TIMECALC_SYSTEM_BST };
+    timecalc_interval_t iv;
+    static const char *result = "1 s 0 ns";
+
+    rv = timecalc_diff(bst, &iv, &a_value, &b_value);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot measure interval [4]");
+    
+    timecalc_interval_sprintf(buf, 128, &iv);
+    ASSERT_STRINGS_EQUAL(buf, result, "Interval result compare failed [4]");
+  }
+
+  // Now, a tricky case.
+  {
+    // The last Sunday in October 2020 is 25th.
+    static timecalc_calendar_t a_value = 
+      { 2020, TIMECALC_OCTOBER, 26, 00, 59, 59, 0, TIMECALC_SYSTEM_UTC };
+    static const char *result = "2020-10-26 00:59:59.000000000 BST";
+
+    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [5]");
+    
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [5]");
+  }
+
+  {
+    // The last Sunday in October 2020 is 25th.
+    static timecalc_calendar_t a_value = 
+      { 2020, TIMECALC_OCTOBER, 24, 00, 59, 59, 0, TIMECALC_SYSTEM_UTC };
+    static const char *result = "2020-10-24 01:59:59.000000000 BST";
+
+    rv = timecalc_zone_raise(bst, &tgt, &a_value);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [5]");
+    
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [5]");
+  }
+
+  // Add 1s to a totally uncontroversial time.
+  {
+    static timecalc_calendar_t a_value = 
+      { 1983, TIMECALC_DECEMBER, 1, 0, 59, 59, 0, TIMECALC_SYSTEM_BST };
+    static timecalc_calendar_t one_second = 
+      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_OFFSET };
+    static const char *result = "1983-12-01 01:00:00.000000000 BST";
+    
+    rv = timecalc_op(bst, &tgt, &a_value, &one_second, TIMECALC_OP_COMPLEX_ADD);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add 1s to BST time [6]");
+
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Add result compare failed [6]");
+  }
+
+  // .. and whilst BST is on.
+  {
+    static timecalc_calendar_t a_value = 
+      { 1983, TIMECALC_APRIL, 1, 23, 59, 59, 0, TIMECALC_SYSTEM_BST };
+    static timecalc_calendar_t one_second = 
+      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_OFFSET };
+    static const char *result = "1983-04-02 00:00:00.000000000 BST";
+    
+    rv = timecalc_op(bst, &tgt, &a_value, &one_second, TIMECALC_OP_COMPLEX_ADD);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add 1s to BST time [7]");
+
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Add result compare failed [7]");
+  }
+  
+
+  printf("**************\n");
+  // The UTC leap second in June 1983 happened in BST, apparently at 0:59:59 on
+  // 1 July.
+  {
+    static timecalc_calendar_t a_value = 
+      { 1983, TIMECALC_JULY, 1, 0, 59, 59, 0, TIMECALC_SYSTEM_BST };
+    static timecalc_calendar_t one_second = 
+      { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_OFFSET };
+    static const char *result = "";
+    
+    rv = timecalc_op(bst, &tgt, &a_value, &one_second, TIMECALC_OP_COMPLEX_ADD);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add 1s to BST time [7]");
+
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "Add result compare failed [7]");
+  }
+
+
+  rv = timecalc_zone_dispose(&bst);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() bst");
+}
+
 
 static void faili(const timecalc_interval_t *a,
 		  const timecalc_interval_t *b,
