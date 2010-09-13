@@ -53,7 +53,7 @@ static void test_gtai(void);
 static void test_interval(void);
 static void test_calendar(void);
 static void test_utc(void);
-//static void test_utcplus(void);
+static void test_utcplus(void);
 
 
 int main(int argn, char *args[])
@@ -78,8 +78,8 @@ int main(int argn, char *args[])
    printf(" -- test_utc() \n");
   test_utc();
 
-  //  printf(" -- test_utcplus() \n");
-  //test_utcplus();
+   printf(" -- test_utcplus() \n");
+  test_utcplus();
 
   return 0;
 }
@@ -341,12 +341,11 @@ static void test_utc(void)
     static timecalc_calendar_t a = 
       { 1972, TIMECALC_JANUARY, 1, 0, 0, 0, 1, TIMECALC_SYSTEM_UTC };
     const char *result = "0000-01-00 00:00:-10.000000000 OFF";
-    int ls;
 
 
-    rv = utc->offset(utc, &tgt, &a, &ls);
+    rv = utc->offset(utc, &tgt, &a);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot find UTC - TAI offset [A0]");
-    ASSERT_INTEGERS_EQUAL(0, ls, "Jan 1 1972 was not a leap second ?! [A0]");
+    // ASSERT_INTEGERS_EQUAL(0, ls, "Jan 1 1972 was not a leap second ?! [A0]");
     
     
     rv = timecalc_calendar_sprintf(buf, 128, &tgt);
@@ -358,11 +357,10 @@ static void test_utc(void)
     static timecalc_calendar_t a = 
       { 1972, TIMECALC_DECEMBER, 31, 23, 59, 59, 300, TIMECALC_SYSTEM_UTC };
     const char *result = "0000-01-00 00:00:-11.000000000 OFF";
-    int ls;
 
-    rv = utc->offset(utc, &tgt, &a, &ls);
+    rv = utc->offset(utc, &tgt, &a);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot find UTC - TAI offset [A1]");
-    ASSERT_INTEGERS_EQUAL(1, ls, "Leap second check [A1]");
+    // ASSERT_INTEGERS_EQUAL(1, ls, "Leap second check [A1]");
     
     
     rv = timecalc_calendar_sprintf(buf, 128, &tgt);
@@ -374,12 +372,12 @@ static void test_utc(void)
     static timecalc_calendar_t a = 
       { 1972, TIMECALC_DECEMBER, 31, 23, 59, 60, 2000, TIMECALC_SYSTEM_UTC };
     const char *result = "0000-01-00 00:00:-12.000000000 OFF";
-    int ls;
+    //int ls;
+    
 
-
-    rv = utc->offset(utc, &tgt, &a, &ls);
+    rv = utc->offset(utc, &tgt, &a);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot find UTC - TAI offset [A2]");
-    ASSERT_INTEGERS_EQUAL(0, ls, "Leap second check [A2]");
+    // ASSERT_INTEGERS_EQUAL(0, ls, "Leap second check [A2]");
     
     
     rv = timecalc_calendar_sprintf(buf, 128, &tgt);
@@ -572,7 +570,6 @@ static void test_utc(void)
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose UTC");
 }
 
-#if 0
 
 static void test_utcplus(void)
 {
@@ -649,8 +646,8 @@ static void test_utcplus(void)
     static const char *result = "1991-01-01 00:00:00.000000000 UTC+0223";
     
     a_value.system = sys;
-    rv = timecalc_op_offset(utcplus, &tgt, TIMECALC_OP_ADD,
-			    &a_value, &a_second);
+    rv = timecalc_op(utcplus, &tgt,
+		     &a_value, &a_second, TIMECALC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot add 1s [3]");
     
     timecalc_calendar_sprintf(buf, 128, &tgt);
@@ -662,22 +659,58 @@ static void test_utcplus(void)
       { 1991, TIMECALC_JANUARY, 1, 02, 22, 59, 0};
     static timecalc_calendar_t a_second = 
       { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_INVALID };
-    static const char *result = "1991-01-01 00:00:00.000000000 UTC+0223";
+    static const char *result = "1991-01-01 02:22:60.000000000 UTC+0223";
     
     printf("***\n");
 
     a_value.system = sys;
-    rv = timecalc_op_offset(utcplus, &tgt, TIMECALC_OP_ADD,
-			    &a_value, &a_second);
+    rv = timecalc_op(utcplus, &tgt, 
+		     &a_value, &a_second, 
+		     TIMECALC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot add 1s [4]");
     
     timecalc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "+1s result failed [4]");
   }
 
+  {
+    static timecalc_calendar_t a_value = 
+      { 1991, TIMECALC_JANUARY, 1, 02, 22, 59, 0};
+    static timecalc_calendar_t a_second = 
+      { 0, 0, 0, 0, 0, 2, 0, TIMECALC_SYSTEM_INVALID };
+    static const char *result = "1991-01-01 02:23:00.000000000 UTC+0223";
+    
+    printf("***\n");
 
+    a_value.system = sys;
+    rv = timecalc_op(utcplus, &tgt, 
+		     &a_value, &a_second, 
+		     TIMECALC_OP_COMPLEX_ADD);
+    ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot add 2s [4]");
+    
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "+1s result failed [4]");
+  }
 
+  {
+    static timecalc_calendar_t a_value = 
+      { 1990, TIMECALC_DECEMBER, 31, 13, 0, 0, 0 };
+    static timecalc_calendar_t a_month = 
+      { 0, 2, 0, 0, 0, 0, 0, TIMECALC_SYSTEM_OFFSET };
+    static const char *result = "1991-03-03 13:00:00.000000000 UTC+0223";
+    printf("***\n");
 
+    a_value.system = sys;
+    rv = timecalc_op(utcplus, &tgt, 
+		     &a_value, &a_month, 
+		     TIMECALC_OP_COMPLEX_ADD);
+    ASSERT_INTEGERS_EQUAL(rv, 0, "Cannot add 1m [5]");
+    
+    timecalc_calendar_sprintf(buf, 128, &tgt);
+    ASSERT_STRINGS_EQUAL(buf, result, "+1m result failed [5]");
+  }
+    
+    
 
 
 
@@ -685,7 +718,6 @@ static void test_utcplus(void)
   rv = timecalc_zone_dispose(&utcplus);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose UTC+");
 }
-#endif
 
 static void faili(const timecalc_interval_t *a,
 		  const timecalc_interval_t *b,

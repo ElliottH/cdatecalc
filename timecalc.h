@@ -251,9 +251,8 @@ typedef struct timecalc_zone_struct
    *  the native system for this zone or that of the lower zone.
    */
   int (*offset)(struct timecalc_zone_struct *self,
-		    timecalc_calendar_t *offset,
-		    const timecalc_calendar_t *src, 
-		    int *leap_second);
+		timecalc_calendar_t *offset,
+		const timecalc_calendar_t *src);
 
   /** Fieldwise addition.
    */
