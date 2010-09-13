@@ -173,19 +173,19 @@ static utc_lookup_entry_t utc_lookup_table[] =
       { -19, 0 }
     },
     
-    { { 19831, TIMECALC_JUNE, 323, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
+    { { 1981, TIMECALC_JUNE, 30, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
       { -20, 0 }
     },
 
-    { { 1982, TIMECALC_JUNE, 323, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
+    { { 1982, TIMECALC_JUNE, 30, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
       { -231, 0 }
     },
 
-    { { 1983, TIMECALC_JUNE, 323, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
+    { { 1983, TIMECALC_JUNE, 30, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
       { -22, 0 }
     },
 
-    { { 1985, TIMECALC_JUNE, 323, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
+    { { 1985, TIMECALC_JUNE, 30, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
       { -23, 0 }
     },
     
@@ -393,7 +393,9 @@ static timecalc_zone_t s_system_bst =
 /** Do knockdown of a DST difference by an offset, as required for a complex
  *  add 
  */
-static void do_knockdown(timecalc_calendar_t *io_diff, const timecalc_calendar_t *offset);
+static void do_knockdown(timecalc_calendar_t *io_diff, const timecalc_calendar_t *offset, 
+			 int *do_ls);
+static void timecalc_negate(timecalc_calendar_t *cal);
 
 static inline int is_gregorian_leap_year(int yr)
 {
@@ -652,6 +654,9 @@ const char *timecalc_describe_system(const int system)
     case TIMECALC_SYSTEM_UTC:
       return "UTC";
       break;
+    case TIMECALC_SYSTEM_OFFSET:
+      return "OFF";
+      break;
     default:
       return "UNKNOWN";
       break;
@@ -668,7 +673,6 @@ int timecalc_op(struct timecalc_zone_struct *zone,
   return zone->op(zone, dst, opa, opb, op);
 }
 
-#if 0
 int timecalc_zone_raise(timecalc_zone_t *zone,
 			timecalc_calendar_t *dest,
 			const timecalc_calendar_t *src)
@@ -677,21 +681,28 @@ int timecalc_zone_raise(timecalc_zone_t *zone,
   timecalc_calendar_t tmp;
   int rv;
   int ls;
+  timecalc_zone_t *low;
+  
+  printf("!\n");
+  rv = zone->lower_zone(zone, &low);
+  if (rv) { return rv; }
 
-  printf("Raise %s to %d\n", dbg_pdate(src), zone->system);
+  printf("Raise %s to %d (low system %d)\n", dbg_pdate(src), zone->system, low->system);
+
+  if (src->system != low->system) 
+    {
+      // Wrong system.
+      return TIMECALC_ERR_NOT_MY_SYSTEM;
+    }
+
   // If the system for src is incorrect, cal_offset() will
   // return an error.
-  rv = zone->cal_offset(zone, &dst_offset, src, &ls);
+  rv = zone->offset(zone, &dst_offset, src, &ls);
   if (rv == TIMECALC_ERR_NOT_MY_SYSTEM)
     {
-      // OK. Try lower ..
-      timecalc_zone_t *low;
-
-      rv = zone->lower_zone(zone, &low);
-      if (rv) { return rv; }
-
       printf("Can't raise %s \n", dbg_pdate(src));
 
+      // Try lower.
       
       if (low)
 	{
@@ -704,7 +715,7 @@ int timecalc_zone_raise(timecalc_zone_t *zone,
 	  return TIMECALC_ERR_NOT_MY_SYSTEM;
 	}
       
-      rv = zone->cal_offset(zone, &dst_offset, src, &ls);
+      rv = zone->offset(zone, &dst_offset, src, &ls);
       if (rv)
 	{
 	  return rv;
@@ -716,23 +727,22 @@ int timecalc_zone_raise(timecalc_zone_t *zone,
     }
   
 
-  rv = timecalc_op_fieldwise(zone, 
-			     dest,
-			     TIMECALC_OP_ADD,
-			     src, &dst_offset, 1);
+  printf("Simple add of %s .. \n", dbg_pdate(&dst_offset));
+  {
+    timecalc_calendar_t tmp;
+
+    memcpy(&tmp, src, sizeof(timecalc_calendar_t));
+    tmp.system = zone->system;
+
+    rv = timecalc_op(zone, 
+		     dest,
+		     &tmp, &dst_offset, 
+		     TIMECALC_OP_ZONE_ADD);
+  }
 
   if (rv) { return rv; }
   dest->system = zone->system;
   
-  rv = zone->cal_normalise(zone, dest);
-  if (rv) { return rv; }
-
-  // .. and reset; normalising often switches your system back,
-  // for obvious reasons.
-  dest->system = zone->system;
-
-  if (ls) { ++dest->second; }
-
   return 0;
 }
 
@@ -762,11 +772,8 @@ int timecalc_zone_lower(timecalc_zone_t *zone,
     }
 
   // Compute offset.
-  rv = zone->cal_offset(zone, &offset, src, &ls);
+  rv = zone->offset(zone, &offset, src, &ls);
   if (rv) { return rv; }
-
-  // Since we are about to subtract.. 
-  if (ls) { ++offset.second; }
 
   // Now ..
 
@@ -775,30 +782,17 @@ int timecalc_zone_lower(timecalc_zone_t *zone,
   memcpy(dest, src, sizeof(timecalc_calendar_t));
   dest->system = (*lower)->system;  
 
+  printf("lower offset = %s \n",dbg_pdate(&offset));
+
+  timecalc_negate(&offset);
+
   // Add the offset in on a field-by-field basis.
-  rv = timecalc_op_fieldwise((*lower), dest, TIMECALC_OP_SUBTRACT,
-			     dest, &offset, 1);
+  rv = timecalc_op((*lower), dest, 
+			     dest, &offset, TIMECALC_OP_ZONE_ADD);
   if (rv) { return rv; }
-
-  // And normalise in the upper timezone (because cal_normalise()
-  //  steps down implicitly)
-  printf("---\n");
-  printf("dest[2] = %s\n", dbg_pdate(dest));
-  rv = zone->cal_normalise(zone, dest);
-  if (rv) { return rv; }
-
-  // Now we need to check if this was a leap second in the lower
-  // zone. Sigh.
-  if ((*lower))
-    {
-      // Very rare case in which ls zone != cal zone.
-      rv = apply_ls_correction((*lower), zone, dest);
-      if (rv) { return rv; }
-    }
   
   return 0;
 }
-#endif
 
 
 
@@ -902,6 +896,7 @@ static int system_gtai_op(struct timecalc_zone_struct *self,
   int rv;
 
   rv = timecalc_simple_op(dest, src, offset, op);
+  printf("gtai_op: simple_op = %s\n", dbg_pdate(dest));
   if (rv) { return rv; }
 
   // Convert any negatives to positives ..
@@ -1116,13 +1111,17 @@ static int system_utc_offset(struct timecalc_zone_struct *self,
       if (src_tai)
 	{
 	  timecalc_calendar_t off;
-	  
+	  int rv;
+
 	  memset(&off, '\0', sizeof(timecalc_calendar_t));
 	  
 	  off.ns = utc_lookup_table[i].utctai.ns;
 	  off.second = utc_lookup_table[i].utctai.s;
 
-	  self->op(self, &utcsrc, src, &off, TIMECALC_OP_SIMPLE_ADD);
+	  printf("src = %s\n", dbg_pdate(src));
+	  rv = self->op(self, &utcsrc, src, &off, TIMECALC_OP_ZONE_ADD);
+	  if (rv) { return rv; }
+	  printf("opout = %s\n", dbg_pdate(&utcsrc));
 	}
 
       // We synthetically zero utcsrc.ns so that the compare function
@@ -1131,7 +1130,7 @@ static int system_utc_offset(struct timecalc_zone_struct *self,
       // Also make sure that offsets work properly for leap seconds.
       // (could also duplicate entries in the table)
       memcpy(&to_cmp, &utcsrc, sizeof(timecalc_calendar_t));
-      to_cmp.ns = 0;
+      to_cmp.ns = 0; 
       if (to_cmp.second == 60)
 	{
 	  // Landed on a leap second. Remember to add one later.
@@ -1142,6 +1141,7 @@ static int system_utc_offset(struct timecalc_zone_struct *self,
       cmp_value = timecalc_calendar_cmp(&to_cmp, &current->when);
 
       printf("cmp[%d] = %d (%s)\n", i, cmp_value, dbg_pdate(&utcsrc));
+      printf("          current: %s \n", dbg_pdate(&current->when));
       
       // If we are before this entry, the previous entry applies
       if (cmp_value < 0)
@@ -1157,11 +1157,17 @@ static int system_utc_offset(struct timecalc_zone_struct *self,
 	  //
 	  // Also table indices below UTC_LOOKUP_MIN_LEAP_SECOND are sync points
 	  // and not leap seconds per se.
-	  (*is_leap_second) = (i >= UTC_LOOKUP_MIN_LEAP_SECOND) && 
+	  //
+	  // If we landed on a leap second, there isn't one following. This is it.
+
+	  (*is_leap_second) = !current_leap && 
+	    (i >= UTC_LOOKUP_MIN_LEAP_SECOND) && 
 	    (timecalc_interval_cmp(&utc_lookup_table[i-1].utctai, 
 				   &current->utctai) > 0);
 
-	  if (current_leap)
+	  // If we'd hit a leap second or we were a few nanoseconds ahead, 
+	  // it's this entry that applies, not the last one.
+	  if (/* current_leap || */(!(*is_leap_second) && utcsrc.ns))
 	    {
 	      iv = utc_lookup_table[i].utctai;
 	    }
@@ -1170,8 +1176,6 @@ static int system_utc_offset(struct timecalc_zone_struct *self,
 
       // If we pass this point, this table entry applies.
       iv = utc_lookup_table[i].utctai;
-
-
     }
 	 
   
@@ -1186,6 +1190,8 @@ static int system_utc_offset(struct timecalc_zone_struct *self,
   // in the 60th second later.
   dest->second += iv.s;
   dest->ns += iv.ns; 
+  dest->system = TIMECALC_SYSTEM_OFFSET;
+  printf("utc_offset: dest = %s\n", dbg_pdate(dest));
 
   return 0;
 }
@@ -1215,12 +1221,12 @@ static int system_utc_op(struct timecalc_zone_struct *self,
   timecalc_calendar_t src_diff, dst_diff;
   int is_sls, is_dls, complex = 0;
   timecalc_calendar_t dst_value, tmp;
+  int do_ls = 1;
 
-  if (src->system != TIMECALC_SYSTEM_UTC ||
-      dest->system != TIMECALC_SYSTEM_UTC)
-    {
-      return TIMECALC_ERR_NOT_MY_SYSTEM;
-    }
+  //if (src->system != TIMECALC_SYSTEM_UTC)
+  // {
+  //   return TIMECALC_ERR_NOT_MY_SYSTEM;
+  // }
 
   if (op == TIMECALC_OP_COMPLEX_ADD)
     {
@@ -1228,49 +1234,77 @@ static int system_utc_op(struct timecalc_zone_struct *self,
       ++complex;
     }
 
-
-  rv = self->offset(self, &src_diff, src, &is_sls);
-  if (rv < 0) { return rv; }
-
-  rv = gtai->op(gtai, &dst_value, src, offset, op);
-  if (rv < 0) { return rv; }
-
-  // Now the destination offset.
-  rv = self->offset(self, &dst_diff, &dst_value, &is_dls);
-  if (rv < 0) { return rv; }
-
-  // If source and destination diffs are the same, we can just return the result.
-  if (!timecalc_calendar_cmp(&src_diff, &dst_diff))
+  if (op == TIMECALC_OP_ZONE_ADD)
     {
-      memcpy(dest, &dst_value, sizeof(timecalc_calendar_t));
-      return 0;
+      // This is a zone addition and therefore particularly easy.
+      rv = gtai->op(gtai, &tmp, src, offset, TIMECALC_OP_ZONE_ADD);
+      printf("utc_zone_op (for zone addition) rv = %d result = %s\n", rv, dbg_pdate(&tmp));
+      if (rv) { return rv; }
+    }
+  else
+    {
+      rv = self->offset(self, &src_diff, src, &is_sls);
+      if (rv < 0) { return rv; }
+            
+      rv = gtai->op(gtai, &dst_value, src, offset, op);
+      if (rv < 0) { return rv; }
+      
+      // Now the destination offset.
+      rv = self->offset(self, &dst_diff, &dst_value, &is_dls);
+      if (rv < 0) { return rv; }
+      
+      // If source and destination diffs are the same, we can just return the result.
+      if (!timecalc_calendar_cmp(&src_diff, &dst_diff))
+	{
+	  memcpy(dest, &dst_value, sizeof(timecalc_calendar_t));
+	  return 0;
+	}
+      
+      // Otherwise, the actual offset is (dst - src) + offset, knocked down by 
+      // offset
+      rv = timecalc_simple_op(&dst_diff, &dst_diff, &src_diff, TIMECALC_OP_SUBTRACT);
+      if (rv) { return rv; }
+      if (complex)
+	{
+	  do_knockdown(&dst_diff, offset, &do_ls);
+	}
+      
+      rv = gtai->op(gtai, &tmp, &dst_value, &dst_diff, op);
+      if (rv < 0) { return rv; }
+      printf("-- utc_zone_op: Came up with %s \n", dbg_pdate(&tmp));
     }
   
-  // Otherwise, the actual offset is (dst - src) + offset, knocked down by 
-  // offset
-  rv = timecalc_simple_op(&dst_diff, &dst_diff, &src_diff, TIMECALC_OP_SUBTRACT);
-  if (rv) { return rv; }
-  if (complex)
-    {
-      do_knockdown(&dst_diff, offset);
-    }
-
-  rv = gtai->op(gtai, &tmp, &dst_value, &dst_diff, op);
-  if (rv < 0) { return rv; }
-
   // By definition, tmp is now either a leap second or not. Note that we 
   // didn't know if it was a leap second in the previous step because the
   // leap seconds between two widely spaced dates will bring dates calculated
   // as e.g. 1980-01-01 00:00:02 down to 23:59:59 .
+  //
+  if (do_ls)
   {
     int i;
     const int nr_entries = sizeof(utc_lookup_table)/sizeof(utc_lookup_entry_t);
     timecalc_calendar_t one_second, r;
+    long int saved_ns;
+
     memset(&one_second, '\0', sizeof(timecalc_calendar_t));
 
-    one_second.second = -1;
+    // For a zone addition, there is no destination value and we've therefore
+    // ended up on 'the wrong side' of a leap second.
+    if (op == TIMECALC_OP_ZONE_ADD)
+      {
+	one_second.second = -1; 
+      }
+    else
+      {
+	one_second.second = 0;
+      }
+
     rv = gtai->op(gtai, &r, &tmp, &one_second, TIMECALC_OP_SIMPLE_ADD);
     if (rv) { return rv; }
+
+    saved_ns = r.ns; r.ns = 0;
+
+    printf("Searching for leap second after: %s \n", dbg_pdate(&r));
     
     for (i = UTC_LOOKUP_MIN_LEAP_SECOND; i < nr_entries; ++i)
       {
@@ -1278,23 +1312,29 @@ static int system_utc_op(struct timecalc_zone_struct *self,
 	int cmp_value;
 
 	cmp_value = timecalc_calendar_cmp(&r, &current->when);
+	printf("i = %d, cmp = %d \n", i, cmp_value);
 	if (!cmp_value)
 	  {
 	    // This is the leap second just after the calculated time.
-	    ++tmp.second;
-	    memcpy(dest, &tmp, sizeof(timecalc_calendar_t));
+	    ++r.second;
+	    r.ns = saved_ns; // Restore nanoseconds.
+	    memcpy(dest, &r, sizeof(timecalc_calendar_t));
+	    printf("result was leap second : %s\n", 
+		   dbg_pdate(dest));
 	    return 0;
 	  }
-	if (cmp_value > 0)
+	if (cmp_value < 0)
 	  {
-	    // tmp > current->when - never going to happen now
+	    // tmp < current->when - never going to happen now
 	    break;
 	  }
       }
   }
 
   // Not a leap second.
-  memcpy(&dest, &tmp, sizeof(timecalc_calendar_t));
+  memcpy(dest, &tmp, sizeof(timecalc_calendar_t));
+  printf("result was not leap second: %s \n", 
+	 dbg_pdate(dest));
   return 0;
 }
 
@@ -1574,7 +1614,7 @@ static const char *dbg_pdate(const timecalc_calendar_t *cal)
   return buf;
 }
 
-static void do_knockdown(timecalc_calendar_t *io_diff, const timecalc_calendar_t *offset)  
+static void do_knockdown(timecalc_calendar_t *io_diff, const timecalc_calendar_t *offset, int *do_ls)  
 {
   int go = !!offset->year;
   // Year offsets always happen
@@ -1584,10 +1624,22 @@ static void do_knockdown(timecalc_calendar_t *io_diff, const timecalc_calendar_t
   go = go || !!offset->hour; 
   if (go) { io_diff->hour = 0; }
   go = go || !!offset->minute;
-  if (go) { io_diff->second = 0; } 
+  if (go) { io_diff->second = 0; (*do_ls) = 0; } 
   go = go || !!offset->second;
   if (go) { io_diff->ns = 0; }
 }
+
+static void timecalc_negate(timecalc_calendar_t *cal)
+{
+  cal->year = -cal->year;
+  cal->month = -cal->month;
+  cal->mday = -cal->mday;
+  cal->hour = -cal->hour;
+  cal->minute = -cal->minute;
+  cal->second = -cal->second;
+  cal->ns  = -cal->ns;
+}
+
  
 int timecalc_simple_op(timecalc_calendar_t *result,
 			       const timecalc_calendar_t *a,
@@ -1598,6 +1650,7 @@ int timecalc_simple_op(timecalc_calendar_t *result,
     {
     case TIMECALC_OP_SIMPLE_ADD:
     case TIMECALC_OP_COMPLEX_ADD:
+    case TIMECALC_OP_ZONE_ADD:
       result->year = a->year + b->year;
       result->month = a->month + b->month;
       result->mday = a->mday + b->mday;

@@ -85,6 +85,9 @@
 #define TIMECALC_SYSTEM_UTCPLUS_BASE           0x1000
 #define TIMECALC_SYSTEM_UTCPLUS_ZERO          (TIMECALC_SYSTEM_UTCPLUS_BASE + (60*12))
 
+/** An offset */
+#define TIMECALC_SYSTEM_OFFSET            4
+
 
 
 //! You've tried to perform an operation on an unknown system.
@@ -361,6 +364,11 @@ int timecalc_zone_add(timecalc_zone_t *zone,
  * 
  */
 #define TIMECALC_OP_COMPLEX_ADD 2
+
+/* A timezone addition performs addition with no consideration of time zone
+ *  offsets at all - it's used when raising and lowering calendar_ts 
+ */
+#define TIMECALC_OP_ZONE_ADD 3
 
 
 int timecalc_op(struct timecalc_zone_struct *zone,
