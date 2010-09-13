@@ -235,9 +235,8 @@ typedef struct timecalc_zone_struct
   int (*dispose)(struct timecalc_zone_struct *self);
 
 
-#if 0
-
-  /** How much time has elapsed between 'before' and 'after' ? 
+  /** Add the amount of time elapsed between 'before' and 'after' to 
+   *  ival.
    *
    * @return 0 on success , < 0 on failure.
    */
@@ -245,7 +244,6 @@ typedef struct timecalc_zone_struct
 	      timecalc_interval_t *ival,
 	      const timecalc_calendar_t *before,
 	      const timecalc_calendar_t *after);
-#endif
 
   /** Obtain the calendar_t required to be added to the underlying
    *  calendar to get it into this time zone.
@@ -341,6 +339,18 @@ int timecalc_simple_op(timecalc_calendar_t *result,
 			int op);
 			
 
+/** Find the difference between two calendar times; this is 
+ *  really a shim on top of the diff() method 
+ *
+ *  Unlike the diff() method, this function zeroes result,
+ *  so can't (easily) accumulate dates.
+ */
+int timecalc_diff(timecalc_zone_t *z,
+		  timecalc_interval_t *result,
+		  const timecalc_calendar_t *before,
+		  const timecalc_calendar_t *after);
+
+
 
 /** Add an interval to a calendar time and normalise. This is essentially
  *  a repeated add.
@@ -410,18 +420,6 @@ int timecalc_zone_lower(timecalc_zone_t *zone,
 			timecalc_zone_t **lzone,
 			const timecalc_calendar_t *src);
 
-
-/** Convert one date to another with the aid of an epoch; the actual
- *  epoch doesn't really matter except that most timezones use some
- *  kind of loop so keeping the epoch close to the dates will 
- *  make your calculation faster.
- */
-//int timecalc_zone_convert(timecalc_calendar_t *dest,
-//			  timecalc_zone_t *from,
-//			  timecalc_zone_t *to,
-//			  const timecalc_calendar_t *src,
-//			  const timecalc_calendar_t *epoch);
-			  
 
 /** Retrieve a timezone for a given zone code 
  *

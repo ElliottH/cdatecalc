@@ -25,16 +25,25 @@
 static const char *dbg_pdate(const timecalc_calendar_t *cal);
 
 
+/** A generic diff function: lower both dates and then call diff()
+ *  again.
+ */
+static int system_lower_diff(struct timecalc_zone_struct *self,
+			     timecalc_interval_t *ival,
+			     const timecalc_calendar_t *before,
+			     const timecalc_calendar_t *after);
+
+
 /** Dispose everyone, all the way down the tree */
 static int chain_dispose(struct timecalc_zone_struct *self);
 
 static int null_init(struct timecalc_zone_struct *self, int arg_i, void *arg_n);
 static int null_dispose(struct timecalc_zone_struct *self);
 
-//static int system_gtai_diff(struct timecalc_zone_struct *self,
-//			    timecalc_interval_t *ival,
-//			    const timecalc_calendar_t *before,
-//			    const timecalc_calendar_t *after);
+static int system_gtai_diff(struct timecalc_zone_struct *self,
+			    timecalc_interval_t *ival,
+			    const timecalc_calendar_t *before,
+			    const timecalc_calendar_t *after);
 
 static int system_gtai_offset(struct timecalc_zone_struct *self,
 			      timecalc_calendar_t *offset,
@@ -67,7 +76,7 @@ static timecalc_zone_t s_system_gtai =
     TIMECALC_SYSTEM_GREGORIAN_TAI,
     null_init,
     null_dispose,
-    //system_gtai_diff,
+    system_gtai_diff,
     system_gtai_offset,
     system_gtai_op,
     system_gtai_aux,
@@ -276,7 +285,7 @@ static timecalc_zone_t s_system_utc =
     TIMECALC_SYSTEM_UTC,
     utc_init,
     null_dispose,
-    //    system_utc_diff,
+    system_lower_diff,
     system_utc_offset,
     system_utc_op,
     system_utc_aux,
@@ -328,6 +337,7 @@ static timecalc_zone_t s_system_utcplus =
     TIMECALC_SYSTEM_UTCPLUS_BASE,
     utc_plus_init,
     null_dispose,
+    system_lower_diff,
     system_utcplus_offset,
     system_utcplus_op,
     system_utcplus_aux,
@@ -373,6 +383,7 @@ static timecalc_zone_t s_system_bst =
     TIMECALC_SYSTEM_BST,
     bst_init,
     null_dispose,
+    system_lower_diff,
     system_bst_offset,
     system_bst_op,
     system_bst_aux,
@@ -407,6 +418,7 @@ static int gregorian_months[] =
 #define MINUTES_PER_HOUR   (60)
 #define HOURS_PER_DAY      (24)
 
+#define SECONDS_PER_HOUR   (SECONDS_PER_MINUTE * MINUTES_PER_HOUR)
 #define SECONDS_PER_DAY    (SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY)
 #define SECONDS_PER_YEAR   (GREGORIAN_DAYS_IN_YEAR * SECONDS_PER_DAY)
 
@@ -876,9 +888,34 @@ static int chain_dispose(struct timecalc_zone_struct *self)
   return rv;
 }
 
+static int system_lower_diff(struct timecalc_zone_struct *self,
+			     timecalc_interval_t *ivalp,
+			     const timecalc_calendar_t *before,
+			     const timecalc_calendar_t *after)
+{
+  timecalc_calendar_t bl, al;
+  timecalc_zone_t *z;
+  int rv;
+
+
+  rv = timecalc_zone_lower(self, &bl, &z, before);
+  if (rv) { return rv; }
+
+  rv = timecalc_zone_lower(self, &al, &z, after);
+  if (rv) { return rv; }
+
+  printf("system_lower_diff[] before = %s \n", dbg_pdate(before));
+  printf("system_lower_diff[] bl     = %s \n", dbg_pdate(&bl));
+
+  printf("system_lower_diff[] after   = %s \n", dbg_pdate(after));
+  printf("system_lower_diff[] al     = %s \n", dbg_pdate(&al));
+
+  return z->diff(z, ivalp, &bl, &al);
+}
+
+
 /* -------------------- Gregorian TAI ---------------- */
 
-#if 0
 static int system_gtai_diff(struct timecalc_zone_struct *self,
 			    timecalc_interval_t *ivalp,
 			    const timecalc_calendar_t *before,
@@ -896,10 +933,13 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
       return TIMECALC_ERR_NOT_MY_SYSTEM;
     }
 
-  // Should we invert the sense of the result?
   if (timecalc_calendar_cmp(before, after) > 0)
     {
-      return system_gtai_diff(self, ivalp, after, before);
+      int rv;
+      rv =  system_gtai_diff(self, ivalp, after, before);
+      if (rv) { return rv; }
+      ivalp->s = -ivalp->s;
+      ivalp->ns = -ivalp->ns;
     }
 
   // Bring the interval onto the stack for manipulation
@@ -909,38 +949,77 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
   memcpy(&ival, ivalp, sizeof(timecalc_interval_t));
 
   {
-    int cur = before->year;
-    int last = after->year;
-    
-    for ( ; cur != last; ++cur)
+    int cur = before->month;
+    int curday = before->mday;
+    int curdays;
+    int last = after->month;
+    int lastday = after->mday;
+    int is_leap = is_gregorian_leap_year(after->year);
+    int curyear = before->year;
+    int lastyear = after->year;
+
+    curdays = gregorian_months[cur] + 
+      ((is_leap && cur == TIMECALC_FEBRUARY) ? 1 : 0);
+
+    while (1)
       {
-	ival.s += SECONDS_PER_YEAR;
-	if (is_gregorian_leap_year(cur)) 
+
+	printf("-> d cur = %d curday = %d \n", cur, curday);
+	// Advance by a day each time, until we hit 'after'.
+	if (cur == last && curday == lastday && curyear == lastyear) 
 	  {
-	    // February has an extra day.
-	    ival.s += SECONDS_PER_DAY;
+	    // There!
+	    break;
 	  }
+
+	// Otherwise .. 
+	ival.s += SECONDS_PER_DAY;
+	++curday;
+
+	{
+	  int daysin = gregorian_months[cur] + 
+	    ((is_leap && cur == TIMECALC_FEBRUARY) ? 1 : 0);
+
+	  if (curday > daysin)
+	  {
+	    curday = 1;
+	    ++cur;
+	  }
+	}
+
+	{
+	  if (cur >= 12)
+	    {
+	      cur = 0;
+	      ++curyear;
+	    }
+	}	      
       }
   }
 
   {
-    int cur = before->month;
-    int last = after->month;
+    int hrdiff = after->hour - before->hour;
 
-    for (; cur != last; ++cur)
-      {
-	ival.s += SECONDS_PER_DAY * gregorian_months[cur];
-      }
+    ival.s += SECONDS_PER_HOUR * hrdiff;
   }
 
-  ival.s += SECONDS_PER_DAY * (after->mday - before->mday);
-  ival.ns = 0;
+  {
+    int mdiff = after->minute - before->minute;
+
+    ival.s += SECONDS_PER_MINUTE *mdiff;
+  }
+  ival.s += (after->second - before->second);
+  ival.ns = (after->ns - before->ns);
+  if (ival.ns < 0)
+    {
+      --ival.s;
+      ival.ns += ONE_BILLION;
+    }
   
   memcpy(ivalp, &ival, sizeof(timecalc_interval_t));
 
   return 0;
 }
-#endif
 
 
 static int system_gtai_offset(struct timecalc_zone_struct *self,
@@ -1943,6 +2022,15 @@ int timecalc_simple_op(timecalc_calendar_t *result,
 
   result->system = a->system;
   return 0;
+}
+
+int timecalc_diff(timecalc_zone_t *z,
+		  timecalc_interval_t *result,
+		  const timecalc_calendar_t *before,
+		  const timecalc_calendar_t *after)
+{
+  memset(result, '\0', sizeof(timecalc_interval_t));
+  return z->diff(z, result, before, after);
 }
 
 

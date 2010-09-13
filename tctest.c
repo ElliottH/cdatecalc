@@ -312,6 +312,41 @@ static void test_gtai(void)
   }
 
 
+  // ... and diff. 1975 was not a leap year.
+  {
+    static timecalc_calendar_t b = 
+      { 1975, TIMECALC_FEBRUARY, 28, 23, 59, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static timecalc_calendar_t a = 
+      { 1975, TIMECALC_MARCH, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    timecalc_interval_t iv;
+    const char *result = "60 s 0 ns";
+    
+    rv = timecalc_diff(gtai, &iv, &b, &a);
+    ASSERT_INTEGERS_EQUAL(0, rv, "diff() failed [0]");
+    
+    rv = timecalc_interval_sprintf(buf, 128, &iv);
+    ASSERT_STRINGS_EQUAL(buf, result, "diff() result compare failed [0]");
+  }
+
+  // but 1976 was.
+  {
+    static timecalc_calendar_t b = 
+      { 1976, TIMECALC_FEBRUARY, 28, 23, 59, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    static timecalc_calendar_t a = 
+      { 1976, TIMECALC_MARCH, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    timecalc_interval_t iv;
+    const char *result = "86460 s 0 ns";
+    
+    rv = timecalc_diff(gtai, &iv, &b, &a);
+    ASSERT_INTEGERS_EQUAL(0, rv, "diff() failed [0]");
+    
+    rv = timecalc_interval_sprintf(buf, 128, &iv);
+    ASSERT_STRINGS_EQUAL(buf, result, "diff() result compare failed [0]");
+  }
+
+  
+
+
   
   rv = timecalc_zone_dispose(&gtai);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose gtai");
@@ -562,6 +597,54 @@ static void test_utc(void)
     
     rv = timecalc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [10]");
+  }
+
+  // Now some diff() tests.
+  {
+    static timecalc_calendar_t b = 
+      { 1970, TIMECALC_JANUARY, 2, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    static timecalc_calendar_t a = 
+      { 1970, TIMECALC_JANUARY, 3, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    timecalc_interval_t iv;
+    const char *result = "86400 s 0 ns";
+    
+    rv = timecalc_diff(utc, &iv, &b, &a);
+    ASSERT_INTEGERS_EQUAL(0, rv, "diff() failed [11]");
+    
+    rv = timecalc_interval_sprintf(buf, 128, &iv);
+    ASSERT_STRINGS_EQUAL(buf, result, "diff() result compare failed [11]");
+  }
+
+  // There were actually 86401 seconds between 31/12/1975 and 1/1/1976 because
+  // of the leap second.
+  {
+    static timecalc_calendar_t b = 
+      { 1975, TIMECALC_DECEMBER, 31, 13, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    static timecalc_calendar_t a = 
+      { 1976, TIMECALC_JANUARY, 1, 13, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    timecalc_interval_t iv;
+    const char *result = "86401 s 0 ns";
+    
+    rv = timecalc_diff(utc, &iv, &b, &a);
+    ASSERT_INTEGERS_EQUAL(0, rv, "diff() failed [11]");
+    
+    rv = timecalc_interval_sprintf(buf, 128, &iv);
+    ASSERT_STRINGS_EQUAL(buf, result, "diff() result compare failed [11]");
+  }
+
+  {
+    static timecalc_calendar_t b = 
+      { 1975, TIMECALC_DECEMBER, 31, 23, 59, 60, 0, TIMECALC_SYSTEM_UTC };
+    static timecalc_calendar_t a = 
+      { 1976, TIMECALC_JANUARY, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+    timecalc_interval_t iv;
+    const char *result = "1 s 0 ns";
+    
+    rv = timecalc_diff(utc, &iv, &b, &a);
+    ASSERT_INTEGERS_EQUAL(0, rv, "diff() failed [12]");
+    
+    rv = timecalc_interval_sprintf(buf, 128, &iv);
+    ASSERT_STRINGS_EQUAL(buf, result, "diff() result compare failed [12]");
   }
 
 
