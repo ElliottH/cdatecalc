@@ -53,6 +53,7 @@ static void test_gtai(void);
 static void test_interval(void);
 static void test_calendar(void);
 static void test_utc(void);
+static void test_utcplus(void);
 
 
 int main(int argn, char *args[])
@@ -76,6 +77,9 @@ int main(int argn, char *args[])
 
   printf(" -- test_utc() \n");
   test_utc();
+
+  printf(" -- test_utcplus() \n");
+  test_utcplus();
 
   return 0;
 }
@@ -176,7 +180,7 @@ static void test_gtai(void)
   ASSERT_STRINGS_EQUAL(gtai_desc, check_gtai_desc, "GTAI descriptions don't match");
 
   rv = timecalc_zone_new(TIMECALC_SYSTEM_GREGORIAN_TAI,
-			 &gtai, NULL);
+			 &gtai, 0, NULL);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create gtai zone");
   rv = gtai->epoch(gtai, &a);
 
@@ -328,7 +332,7 @@ static void test_utc(void)
   ASSERT_STRINGS_EQUAL(utc_desc, check_utc_desc, "UTC descriptions don't match");
 
   rv = timecalc_zone_new(TIMECALC_SYSTEM_UTC,
-			  &utc, NULL);
+			 &utc, 0, NULL);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create UTC timezone");
 
 
@@ -497,14 +501,30 @@ static void test_utc(void)
     ASSERT_STRINGS_EQUAL(buf, result, "Offset add result compare failed [10]");
   }
 
-  
-
- 
-
-
 
   rv = timecalc_zone_dispose(&utc);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose UTC");
+}
+
+
+static void test_utcplus(void)
+{
+  timecalc_zone_t *utcplus;
+  static const char *check_utcplus_dest = "UTC+0223";
+  const char *utcplus_desc;
+  int rv;
+  //char buf[128];
+  //timecalc_calendar_t tgt;
+  int sys = TIMECALC_SYSTEM_UTCPLUS_ZERO + (2*60 + 23);
+
+  utcplus_desc = timecalc_describe_system(sys);
+  ASSERT_STRINGS_EQUAL(utcplus_desc, check_utcplus_dest, "UTC+ descriptions don't match");
+
+  rv = timecalc_zone_new(sys, &utcplus, 0, NULL);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create UTC+ timezone");
+
+  rv = timecalc_zone_dispose(&utcplus);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose UTC+");
 }
 
 static void faili(const timecalc_interval_t *a,

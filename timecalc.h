@@ -75,8 +75,15 @@
 /** TAI, Gregorian calendar */
 #define TIMECALC_SYSTEM_GREGORIAN_TAI     0 
 
-/** BST */
+/** UTC */
 #define TIMECALC_SYSTEM_UTC               2
+
+/** BST */
+#define TIMECALC_SYSTEM_BST               3
+
+/** UTC plus an offset of 0 (-1200) to 1440 (+1200) */
+#define TIMECALC_SYSTEM_UTCPLUS_BASE           0x1000
+#define TIMECALC_SYSTEM_UTCPLUS_ZERO          (TIMECALC_SYSTEM_UTCPLUS_BASE + (60*12))
 
 
 
@@ -206,7 +213,7 @@ typedef struct timecalc_zone_struct
   int system;
 
   /** Initialize this zone structure; mainly used internally */
-  int (*init)(struct timecalc_zone_struct *self, void *arg);
+  int (*init)(struct timecalc_zone_struct *self, int arg_i, void *arg_n);
 
   /** Kill this zone structure (but don't free() it - just any 
    *   internal data) - mainly used by timecalc_zone_dispose() 
@@ -247,7 +254,7 @@ typedef struct timecalc_zone_struct
 		    int *leap_second);
 
   /** Perform a calendar normalisation. This normalises 'cal_io' to
-   *  the underlying calendar system in use (before tai_offset() is
+   *  the underlying calendar system in use (before cal_offset() is
    *  added), to which the offsets of this time zone are then applied.
    *
    *  Note that this causes immense difficulty for time zones like
@@ -418,7 +425,8 @@ int timecalc_zone_lower(timecalc_zone_t *zone,
  */
 int timecalc_zone_new(int system, 
 		      timecalc_zone_t **out_zone,
-		      void *arg);
+		      int i,
+		      void *n);
 
 
 /** Dispose of a zone */
