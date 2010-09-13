@@ -465,22 +465,29 @@ static int system_gtai_aux(struct timecalc_zone_struct *self,
 	if (i == 1 && is_gregorian_leap_year(cal->year)) { ++yday; }
       }
     yday += cal->mday;
-    aux->yday = yday;
+
+    // We want our ydays to be zero-based.
+    aux->yday = yday -1;
   }
 
   // The century start day of week follows a 4,2,0,6 pattern. 17XX == 4 */
   static const int cstart[] = { 4,2,0, 6};
   static const int wday[] = { 0, 3, 3, 6, 1, 4, 6, 2, 5, 0, 3, 5 };
   static const int leap_wday[] = { 6, 2, 3, 6, 1, 4, 6, 2, 5, 0, 3, 5 };
- int dow;
+  int dow;
 
   // &3 is here to make sure the result is +ve.
   int idx = ((cal->year / 100) - 17)&3;
   int yoff = (cal->year % 100);
 
+  //printf("cstart[%d] = %d \n", 
+  //idx, cstart[idx]);
+  // printf("yoff = %d \n", cal->year%100);
+
+  // This calculation actually expects mday to be 1-based.
   dow = cstart[idx] + yoff + (yoff / 4) + 
     (is_gregorian_leap_year(cal->year) ? leap_wday[cal->month] : 
-     wday[cal->month]) + (cal->mday - 1) ;
+     wday[cal->month]) + (cal->mday) ;
   aux->wday = (dow % 7);
 
   return 0;

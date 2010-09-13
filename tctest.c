@@ -227,6 +227,84 @@ static void test_gtai(void)
 			 "Adding 2 years of seconds to epoch failed.");
   }
 
+  // 2000 was a leap year (divisible by 400)
+  // 1900 was not (divisible by 100)
+  {
+    timecalc_interval_t ti;
+    static timecalc_calendar_t a = 
+      { 2000, 1, 28, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+
+    // 1996 was
+    static timecalc_calendar_t b = 
+      { 1900, 1, 28, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    char buf[128];
+    timecalc_calendar_t c;
+    const char *check1 = "2000-02-29 00:00:00.000000000 TAI";
+    const char *check2 = "1900-03-01 00:00:00.000000000 TAI";
+
+    ti.ns = 0;
+    ti.s = (86400);
+    rv = timecalc_zone_add(gtai, &c, &a, &ti);
+    ASSERT_INTEGERS_EQUAL(0, rv, "add() failed");
+    rv = timecalc_calendar_sprintf(buf, 128, &c);
+    ASSERT_STRINGS_EQUAL(buf, check1, 
+			 "Adding a day to 28 Feb 2000");
+
+    rv = timecalc_zone_add(gtai, &c, &b, &ti);
+    ASSERT_INTEGERS_EQUAL(0, rv, "add() failed");
+    rv = timecalc_calendar_sprintf(buf, 128, &c);
+    ASSERT_STRINGS_EQUAL(buf, check2, 
+			 "Adding a day to 28 Feb 1900");
+
+  }
+    
+  // Now check aux
+  {
+    timecalc_calendar_aux_t aux;
+    static timecalc_calendar_t a  =
+      { 2010, 8, 1, 13, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+
+    // 18th August 1804 was a Saturday
+    static timecalc_calendar_t b = 
+      { 1804, 7, 18, 13, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+
+    char buf[128];
+
+    timecalc_calendar_sprintf(buf, 128, &a);
+    printf("a = %s\n", buf);
+
+    // 1st Sept 2010 is a Wednesday
+    rv = gtai->aux(gtai, &a, &aux);
+    ASSERT_INTEGERS_EQUAL(rv, 0, "Retrieving aux info for 1 Sep 2010");
+
+    // Weds = 2 
+    ASSERT_INTEGERS_EQUAL(aux.wday, 3, 
+			  "aux.wday is not Wednesday");
+    // yday = 31 + 28 + 31 + 30 + 31 + 30 + 31 + 31
+    //      = 243
+    ASSERT_INTEGERS_EQUAL(aux.yday, 243,
+			  "1 Sep is not day 243 of a non-leap-year?");
+
+    
+    ASSERT_INTEGERS_EQUAL(aux.is_dst, 0,
+			  "a TAI time is DST?!");
+    
+    rv = gtai->aux(gtai, &b, &aux);
+    ASSERT_INTEGERS_EQUAL(rv, 0, "Retrieving aux info for 18th August 1804");
+
+    // Saturday = 5
+    ASSERT_INTEGERS_EQUAL(aux.wday, 6,
+			  "18th Aug 1804 was not a Saturday?");
+
+    // yday = 31 + 29 + 31 + 30 + 31+ 30 + 31 + 18 -1 (zero based)
+    //      = 231
+    ASSERT_INTEGERS_EQUAL(aux.yday,
+			  230, "18th Aug 1804 was not day 230");
+
+    ASSERT_INTEGERS_EQUAL(aux.is_dst, 0,
+			  "A TAI time is DST?!");
+  }
+
 
   
   rv = timecalc_zone_dispose(&gtai);

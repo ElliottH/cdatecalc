@@ -138,7 +138,7 @@ typedef struct timecalc_calendar_struct
  */
 typedef struct timecalc_calendar_aux_struct
 {
-  /** Day of the week (monday = 0) */
+  /** Day of the week (Sunday = 0, Saturday = 6) */
   int wday;
 
   /** Day of the year (0-365) */
