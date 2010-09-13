@@ -56,6 +56,7 @@ static void test_utc(void);
 static void test_utcplus(void);
 static void test_bst(void);
 static void test_rebased(void);
+static void test_bounce(void);
 
 int main(int argn, char *args[])
 {
@@ -87,6 +88,9 @@ int main(int argn, char *args[])
 
   printf(" -- test_rebased() \n");
   test_rebased();
+
+  printf(" -- test_bounce() \n");
+  test_bounce();
 
   return 0;
 }
@@ -1048,6 +1052,119 @@ static void test_rebased(void)
     
   rv = timecalc_zone_dispose(&rb);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() rebased");
+
+  rv = timecalc_zone_dispose(&tai);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() tai");
+
+}
+
+static void test_bounce(void)
+{
+  timecalc_zone_t *bst;
+  timecalc_zone_t *offset;
+  int rv;
+  char buf[128];
+
+  {
+    // 1 hr
+    timecalc_calendar_t human = 
+      { 2010, TIMECALC_JUNE, 4, 12, 23, 04, 0, TIMECALC_SYSTEM_BST };
+    timecalc_calendar_t computer =
+      { 2010, TIMECALC_JUNE, 4, 12, 23, 04, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    timecalc_calendar_t tgt;
+    
+    rv = timecalc_bst_new(&bst);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot construct bst");
+    
+    rv = timecalc_rebased_tai(&offset, bst, &human, &computer);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot construct offset");
+    
+    {
+      static timecalc_calendar_t a = 
+	{ 2010, TIMECALC_NOVEMBER, 5, 15, 00, 00, 0, TIMECALC_SYSTEM_BST };
+      // Actually an hour ahead because BST has ticked back an hour at the end
+      // of BST, but the computer clock has just carried on ticking.
+      static const char *result = "2010-11-05 16:00:00.000000000 REBASED*";
+      
+      rv = timecalc_bounce(bst, offset, &tgt, &a);
+      ASSERT_INTEGERS_EQUAL(0, rv, "Cannot bounce time [0]");
+      
+      timecalc_calendar_sprintf(buf, 128, &tgt);
+      ASSERT_STRINGS_EQUAL(buf, result, "Bounce time check failed [0]");
+    }
+  }
+
+  {
+    // 1yr 5 months, 3 days, 12 hours, 23 minutes, 04 s
+    timecalc_calendar_t human = 
+      { 2010, TIMECALC_JUNE, 4, 12, 23, 04, 0, TIMECALC_SYSTEM_BST };
+    timecalc_calendar_t computer =
+      { 2009, TIMECALC_JANUARY, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI };
+    timecalc_calendar_t tgt;
+    
+    rv = timecalc_bst_new(&bst);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot construct bst");
+    
+    rv = timecalc_rebased_tai(&offset, bst, &human, &computer);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot construct offset");
+    
+    {
+      // We are actually one hour ahead, but so was the original human
+      // time, so the apparent difference is what you see above, and
+      // we should expect 2009 - 01 - 02 02:36:56.
+      static timecalc_calendar_t a = 
+	{ 2010, TIMECALC_JUNE, 5, 15, 00, 00, 0, TIMECALC_SYSTEM_BST };
+      static const char *result = "2009-01-02 02:36:56.000000000 REBASED*";
+      
+      rv = timecalc_bounce(bst, offset, &tgt, &a);
+      ASSERT_INTEGERS_EQUAL(0, rv, "Cannot bounce time [0]");
+      
+      timecalc_calendar_sprintf(buf, 128, &tgt);
+      ASSERT_STRINGS_EQUAL(buf, result, "Bounce time check failed [0]");
+    }
+
+    printf("------------\n");
+    {
+      // 1y 5m 4d 15h after the original time point.
+      // => we should expect 2011-11-08 03:23:04 -1hr for BST.
+      // However, the number of days between Jan and Jun is one
+      // less than between Jun and Nov, so in fact we get 2011-11-07
+      static timecalc_calendar_t a = 
+	{ 2010, TIMECALC_JUNE, 5, 15, 00, 00, 0, TIMECALC_SYSTEM_REBASED };
+      static const char *result = "2011-11-07 02:23:04.000000000 BST";
+
+      rv = timecalc_bounce(offset, bst, &tgt, &a);
+      ASSERT_INTEGERS_EQUAL(0, rv, "Cannot bounce time [1]");
+      
+      timecalc_calendar_sprintf(buf, 128, &tgt);
+      ASSERT_STRINGS_EQUAL(buf, result, "Bounce time check failed [1]");
+    }
+
+    printf("------------\n");
+    {
+      // .. and now ahead by an hour because we've landed in BST.
+      static timecalc_calendar_t a = 
+	{ 2010, TIMECALC_OCTOBER, 5, 15, 00, 00, 0, TIMECALC_SYSTEM_REBASED };
+      static const char *result = "2012-03-08 03:23:04.000000000 BST";
+
+      rv = timecalc_bounce(offset, bst, &tgt, &a);
+      ASSERT_INTEGERS_EQUAL(0, rv, "Cannot bounce time [2]");
+      
+      timecalc_calendar_sprintf(buf, 128, &tgt);
+      ASSERT_STRINGS_EQUAL(buf, result, "Bounce time check failed [2]");
+    }
+
+  }
+
+
+
+  
+
+
+  rv = timecalc_zone_dispose(&offset);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() offset");
+  rv = timecalc_zone_dispose(&bst);
+  ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() bst");
 }
 
 

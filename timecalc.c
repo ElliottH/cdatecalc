@@ -822,6 +822,23 @@ int timecalc_op(struct timecalc_zone_struct *zone,
   return zone->op(zone, dst, opa, opb, op);
 }
 
+int timecalc_bounce(struct timecalc_zone_struct *down_zone,
+		    struct timecalc_zone_struct *up_zone,
+		    timecalc_calendar_t *dst,
+		    const timecalc_calendar_t *src)
+{
+  timecalc_zone_t *z;
+  timecalc_calendar_t tmp;
+  int rv;
+
+  rv = timecalc_zone_lower_to(down_zone, &tmp, &z, src, -1);
+  if (rv) { return rv; }
+
+  rv = timecalc_zone_raise(up_zone, dst, &tmp);
+  return rv;
+}
+		   
+
 int timecalc_zone_raise(timecalc_zone_t *zone,
 			timecalc_calendar_t *dest,
 			const timecalc_calendar_t *src)
@@ -906,6 +923,9 @@ int timecalc_zone_lower_to(timecalc_zone_t *zone,
 {
   timecalc_calendar_t current;
 
+  printf("Lower %d to %d (z = %d, h = 0x%08x).. \n", src->system, to_system, zone->system, 
+	 (unsigned int)zone->handle);
+
   memcpy(&current, src, sizeof(timecalc_calendar_t));
   while (current.system != to_system)
     {
@@ -914,19 +934,41 @@ int timecalc_zone_lower_to(timecalc_zone_t *zone,
 
       rv = zone->lower_zone(zone, &l);
       if (rv) 
-	{ return rv; }
+	{
+	  return rv; 
+	}
+
+      printf("lower_zone: l = 0x%08x z = %d\n", (unsigned int) l, (l ? l->system :-1));
       if (!l) 
 	{
-	  return TIMECALC_ERR_CANNOT_CONVERT;
+	  printf("No lower zone than %d (cur = %d)\n", zone->system, current.system);
+	  if (to_system == -1)
+	    {
+	      // This is the lowest zone.
+	      break;
+	    }
+	  else
+	    {
+	      // Error!
+	      return TIMECALC_ERR_CANNOT_CONVERT;
+	    }
 	}
       
-      rv = timecalc_zone_lower(zone, dest, &l, &current);
-      if (rv) { return rv; }
+      if (current.system == zone->system)
+	{
+	  // We can lower it - let's have a go.
+	  printf("Lower..\n");
+	  rv = timecalc_zone_lower(zone, dest, &l, &current);
+	  if (rv) { return rv; }
+	  printf("lower to %d \n", l->system);
+	  memcpy(&current, dest, sizeof(timecalc_calendar_t));
+	}
+      
+      // The lowest zone we've got .. 
       (*lower) = l;
 
       // Otherwise ..
       zone = l;
-      memcpy(&current, dest, sizeof(timecalc_calendar_t));
     }
 
   return 0;
@@ -1239,8 +1281,17 @@ static int system_gtai_op(struct timecalc_zone_struct *self,
   dest->hour += (dest->minute / MINUTES_PER_HOUR);
   dest->minute = (dest->minute % MINUTES_PER_HOUR);
 
+#if DEBUG_GTAI
+  printf("gtai_op: dest before mday  =            %s\n",dbg_pdate(dest));
+#endif
+
+
   dest->mday += (dest->hour / HOURS_PER_DAY);
   dest->hour = (dest->hour % HOURS_PER_DAY);
+
+#if DEBUG_GTAI
+  printf("gtai_op: dest after mday  =            %s\n",dbg_pdate(dest));
+#endif
 
   // Now the tricky part .. 
   while (!done)
@@ -1274,6 +1325,11 @@ static int system_gtai_op(struct timecalc_zone_struct *self,
       // We're valid.
       ++done;
     }
+
+#if DEBUG_GTAI
+  printf("gtai_op: normalised                = %s\n", dbg_pdate(dest));
+#endif
+
 
   return 0;
 
@@ -1656,69 +1712,6 @@ static int system_utc_op(struct timecalc_zone_struct *self,
 
   return 0;
 }
-
-#if 0
-static int system_utc_diff(struct timecalc_zone_struct *self,
-			   timecalc_interval_t *ival,
-			   const timecalc_calendar_t *before,
-			   const timecalc_calendar_t *after)
-{
-  // Convert UTC to TAI for both before and after, then call down.
-  int ls;
-  timecalc_calendar_t src_offset, dst_offset;
-  timecalc_calendar_t tai_b, tai_a;
-  int rv;
-
-  if (!(before->system == TIMECALC_SYSTEM_UTC || 
-	before->system == TIMECALC_SYSTEM_GREGORIAN_TAI) || 
-      !(after->system == TIMECALC_SYSTEM_UTC ||
-	after->system == TIMECALC_SYSTEM_GREGORIAN_TAI))
-    {
-      return TIMECALC_ERR_BAD_SYSTEM;
-    }
-  
-  // Number of seconds between two dates. Get the offsets for both..
-  if (before->system == TIMECALC_SYSTEM_UTC)
-    {
-      rv = self->cal_offset(self, &src_offset, before, &ls);
-      if (rv) { return rv; }
-      if (ls) { ++src_offset.second; }
-
-      // .. and subtract .. 
-      rv = timecalc_op_fieldwise(self, 
-				 &tai_b,
-				 TIMECALC_OP_SUBTRACT,
-				 before, &src_offset, 1);
-      if (rv) { return rv; }
-      tai_b.system = TIMECALC_SYSTEM_GREGORIAN_TAI;
-    }
-
-  if (after->system == TIMECALC_SYSTEM_UTC)
-    {
-      rv =self->cal_offset(self, &dst_offset, after, &ls);
-      if (rv) { return rv; }
-      if (ls) { ++dst_offset.second; }
-
-      // And subtract.
-      rv = timecalc_op_fieldwise(self, 
-				 &tai_a,
-				 TIMECALC_OP_SUBTRACT,
-				 after, &dst_offset, 1);
-      if (rv) { return rv; }
-      tai_a.system = TIMECALC_SYSTEM_GREGORIAN_TAI;
-    }
-
-  if (rv) { return rv; }
-
-  // Now our times are both in gregorian tai .. 
-  {
-    timecalc_zone_t *tai = (timecalc_zone_t *)(self->handle);
-
-    return tai->diff(tai, ival, &tai_a, &tai_b);
-  }
-}
-#endif
-
 
 static int system_utc_aux(struct timecalc_zone_struct *self,
 			  const timecalc_calendar_t *calc,
@@ -2190,14 +2183,12 @@ static int system_rebased_init(struct timecalc_zone_struct *self,
 
 static int system_rebased_dispose(timecalc_zone_t *self)
 {
-  int rv;
   timecalc_rebased_handle_t *h = 
     (timecalc_rebased_handle_t *)self->handle;
+  // Don't free h->lower: may be needed elsewhere
 
-  rv = h->lower->dispose(h->lower);
-  free(h->lower);
   free(h);
-  return rv;
+  return 0;
 }
 
 static int system_rebased_offset(struct timecalc_zone_struct *self,
@@ -2296,6 +2287,9 @@ static int system_rebased_lower_zone(struct timecalc_zone_struct *self,
 
 static void do_knockdown(timecalc_calendar_t *io_diff, const timecalc_calendar_t *offset, int *do_ls)  
 {
+  // If we've suppressed knockdown, do nothing.
+  if (offset->flags & TIMECALC_FLAG_AS_IF_NS) { return; }
+
   int go = !!offset->year;
   // Year offsets always happen
   if (go) { io_diff->month = 0; }
@@ -2363,6 +2357,36 @@ int timecalc_diff(timecalc_zone_t *z,
 {
   memset(result, '\0', sizeof(timecalc_interval_t));
   return z->diff(z, result, before, after);
+}
+
+int timecalc_rebased_tai(struct timecalc_zone_struct **dst,
+			 struct timecalc_zone_struct *human_zone,
+			 const timecalc_calendar_t *human_time,
+			 const timecalc_calendar_t *machine_time)
+{
+  int rv;
+  timecalc_calendar_t c1;
+  timecalc_interval_t iv;
+  timecalc_zone_t *lzone;
+
+  printf("> rebased_tai()\n");
+  rv = timecalc_zone_lower_to(human_zone, &c1, &lzone, human_time, machine_time->system);
+  if (rv) { return rv; }
+
+  // Otherwise ..
+  rv = timecalc_diff(lzone, &iv, &c1, machine_time);
+  if (rv) { return rv; }
+
+  timecalc_calendar_t offset;
+
+  memset(&offset, '\0', sizeof(timecalc_calendar_t));
+  offset.second = iv.s;
+  offset.ns = iv.ns;
+  offset.flags |= TIMECALC_FLAG_AS_IF_NS;
+  offset.system = TIMECALC_SYSTEM_OFFSET;
+  
+  rv = timecalc_rebased_new(dst, &offset, lzone);
+  return rv;
 }
 
 

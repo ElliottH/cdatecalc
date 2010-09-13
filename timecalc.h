@@ -205,6 +205,14 @@ typedef struct timecalc_calendar_struct
   /** The time system in which this calendar time is expressed */
   uint32_t system;
 
+#define TIMECALC_FLAG_AS_IF_NS (1<<0)
+  /** Flags: the only important one at the moment is AS_IF_NS: this
+   *  means that an offset added to a time will not suppress the
+   *  carry-forward of any DST offsets below that number 
+   *  (i.e. it's treated as an offset in nanoseconds)
+   */
+  uint32_t flags;
+
 } timecalc_calendar_t;
 
 /** Other things you might like to know when converting to a calendar
@@ -426,6 +434,31 @@ int timecalc_op(struct timecalc_zone_struct *zone,
 		const timecalc_calendar_t *offset,
 		int op);
 
+/** 'Bounce' a date down from 'down_zone' to its base, then up-convert
+ *  to 'up_zone' . 
+ */
+int timecalc_bounce(struct timecalc_zone_struct *down_zone,
+		    struct timecalc_zone_struct *up_zone,
+		    timecalc_calendar_t *dst,
+		    const timecalc_calendar_t *src);
+
+/** Create a rebased TAI; feed in:
+ *
+ *   - A human zone.
+ *   - The time in that zone
+ *   - The time in an equivalent TAI
+ *  
+ *  You'll get out a timezone that maps that time in TAI 
+ *  to that time in the human zone. The offset is made
+ *  'as_if_ns' so it doesn't cause offset knockdown during
+ *  future translations (i.e. so it acts as you'd expect)
+ */
+int timecalc_rebased_tai(struct timecalc_zone_struct **dst,
+			 struct timecalc_zone_struct *human_zone,
+			 const timecalc_calendar_t *human_time,
+			 const timecalc_calendar_t *machine_time);
+			 
+
 
 /** "Raise" a date from the underlying calendar type of a DST 
  *  timezone to a full member of that timezone (so e.g. a Gregorian
@@ -449,7 +482,8 @@ int timecalc_zone_lower(timecalc_zone_t *zone,
 			timecalc_zone_t **lzone,
 			const timecalc_calendar_t *src);
 
-/** Lower a date to a given system, or if the system is 
+/** Lower a date to a given system, or if the system is -1, down to 
+ *  the lowest zone we can.
  */
 int timecalc_zone_lower_to(timecalc_zone_t *zone,
 			   timecalc_calendar_t *dest,
@@ -482,7 +516,7 @@ int timecalc_tai_new(timecalc_zone_t **ozone);
 int timecalc_utcplus_new(timecalc_zone_t **ozone, int offset);
 int timecalc_bst_new(timecalc_zone_t **ozone);
 
-/** The rebased zone takes ownership of the zone it's based on */
+/** The rebased zone DOES NOT take ownership of the zone it's based on */
 int timecalc_rebased_new(timecalc_zone_t **ozone, 
 			 const timecalc_calendar_t *offset,
 			 timecalc_zone_t *based_on);
