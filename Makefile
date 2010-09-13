@@ -1,4 +1,4 @@
-CFLAGS=-Wall -Werror --std=c99 -I.
+CFLAGS=-Wall -Werror --std=c99 -I. -g
 
 all: timecalc.o tctest
 	@echo Done.

@@ -23,20 +23,25 @@
 #define SWAP(x,y) { __typeof(x) __tmp; __tmp = (x); (x) = (y); (y) = __tmp; }
 
 
-static void null_init(struct timecalc_zone_struct *self, void *arg);
-static void null_dispose(struct timecalc_zone_struct *self);
+static int null_init(struct timecalc_zone_struct *self, void *arg);
+static int null_dispose(struct timecalc_zone_struct *self);
 
 static int system_gtai_diff(struct timecalc_zone_struct *self,
 			    timecalc_interval_t *ival,
 			    const timecalc_calendar_t *before,
 			    const timecalc_calendar_t *after);
 
-static int system_gtai_normalise(struct timecalc_zone_struct *self,
-				 timecalc_calendar_t *io_cal);
+static int system_gtai_offset(struct timecalc_zone_struct *self,
+			      timecalc_calendar_t *offset,
+			      const timecalc_calendar_t *src,
+			      int *leap_second);
 
 static int system_gtai_aux(struct timecalc_zone_struct *self,
 			   const timecalc_calendar_t *calc,
 			   timecalc_calendar_aux_t *aux);
+
+static int system_gtai_normalise(struct timecalc_zone_struct *self,
+				 timecalc_calendar_t *io_cal);
 
 
 static int system_gtai_epoch(struct timecalc_zone_struct *self,
@@ -49,11 +54,223 @@ static timecalc_zone_t s_system_gtai =
     null_init,
     null_dispose,
     system_gtai_diff,
+    system_gtai_offset,
     system_gtai_normalise,
     system_gtai_aux,
     system_gtai_epoch
   };
-  
+
+/* UTC: Applies UTC corrections to TAI
+ */
+
+// A table of calendar dates mapping to the difference between
+// UTC and TAI.
+typedef struct utc_lookup_entry_struct
+{
+  timecalc_calendar_t when;
+ 
+  //! Value of utc-tai (i.e. add this to TAI to get UTC)
+  timecalc_interval_t utctai;
+ 
+} utc_lookup_entry_t;
+
+/* Taken from the NIST's page at
+ * http://tf.nist.gov/pubs/bulletin/leapsecond.htm
+ *
+ * All leap seconds so far have been +ve leap seconds
+ * (i.e. there was a 60)
+ *
+ * To use this table:
+ *
+ *   - Compute your date in TAI.
+ *   - Read up the table, counting leap seconds and adding them
+ *      to your time as you go.
+ *   - If you are earlier than all entries, there are no leap seconds
+ *       (UTC doesn't exist yet)
+ *   - If you are later than entry A but earlier than B, you're done.
+ *   - If you are entry A, add that leap second. If it's a +ve leap second,
+ *     jump ahead. If a -ve one, congratulations! You've got s = 60.
+ *
+ * The irregular initial time jumps compensate to some extent for the
+ *  difference in the length of a second between SI and UTC between 1961 and 
+ *  1972.
+ */
+static utc_lookup_entry_t utc_lookup_table[] =
+  {
+
+    // A dummy 0 entry to make conv easier to write.
+    { { 0, 0, 0, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC },
+      { 0, 0 } 
+    },
+
+    // midnight 1 Jan 1961 UTC was TAI 1 Jan 1961 00:00:01.422818
+    { { 1961, TIMECALC_JANUARY, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC },
+      { -1,
+	-422818000
+      } 
+    },
+
+    // This is The Confused Period where the UTC second and the SI
+    // second disagreed.
+
+    // midnight 1 Jan 1972  UTC was TAI 1 Jan 1972 00:00:10 
+    {
+      { 1972, TIMECALC_JANUARY, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC },
+      { -10, 0 }
+    },
+
+    // This is the start of leap second calculation
+#define UTC_LOOKUP_MIN_LEAP_SECOND 3
+
+
+    // The June 1972 leap second
+    { { 1972, TIMECALC_JUNE, 30, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC }, 
+      { -11, 0 }
+    },
+
+    { { 1972, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC },
+      { -12, 0 } 
+    },
+
+    { { 1973, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC },
+      { -13, 0 }
+    },
+
+    { { 1974, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC },
+      { -14, 0 }
+    },
+    
+    { { 1975, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC },
+      { -15, 0 }
+    },
+    
+    { { 1976, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -16, 0 }
+    },
+
+    { { 1977, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -17, 0 }
+    },
+    
+    { { 1978, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -18, 0 }
+    },
+    
+    { { 1979, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -19, 0 }
+    },
+    
+    { { 1981, TIMECALC_JUNE, 30, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -20, 0 }
+    },
+
+    { { 1982, TIMECALC_JUNE, 30, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -21, 0 }
+    },
+
+    { { 1983, TIMECALC_JUNE, 30, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -22, 0 }
+    },
+
+    { { 1985, TIMECALC_JUNE, 30, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -23, 0 }
+    },
+    
+    { { 1987, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -24, 0 }
+    },
+
+    { { 1989, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -25, 0 }
+    },
+
+    { { 1990, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -26, 0 }
+    },
+
+    { { 1992, TIMECALC_JUNE, 30, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -27, 0 }
+    },
+
+    { { 1993, TIMECALC_JUNE, 30, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -28, 0 }
+    },
+
+    { { 1994, TIMECALC_JUNE, 30, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -29, 0 }
+    },
+
+    { { 1995, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -30, 0 }
+    },
+
+    { { 1997, TIMECALC_JUNE, 30, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -31, 0 }
+    },
+
+    { { 1998, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -32, 0 }
+    },
+
+    { { 2005, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -33 , 0 }
+    },
+
+    { { 2008, TIMECALC_DECEMBER, 31, 0, 0, 0, 0, TIMECALC_SYSTEM_GREGORIAN_TAI },
+      { -34, 0 }
+    }
+  };
+     
+
+static int utc_init(struct timecalc_zone_struct *self,
+		    void *arg);
+
+static int utc_dispose(struct timecalc_zone_struct *self);
+
+
+static int system_utc_diff(struct timecalc_zone_struct *self,
+			   timecalc_interval_t *ival,
+			   const timecalc_calendar_t *before,
+			   const timecalc_calendar_t *after);
+
+static int system_utc_offset(struct timecalc_zone_struct *self,
+			     timecalc_calendar_t *offset,
+			     const timecalc_calendar_t *src,
+			     int *leap_second);
+
+
+static int system_utc_normalise(struct timecalc_zone_struct *self,
+					  timecalc_calendar_t *io_cal);
+
+
+static int system_utc_aux(struct timecalc_zone_struct *self,
+			   const timecalc_calendar_t *calc,
+			   timecalc_calendar_aux_t *aux);
+
+static int system_utc_epoch(struct timecalc_zone_struct *self,
+			    timecalc_calendar_t *aux);
+
+
+static timecalc_zone_t s_system_utc = 
+  {
+    NULL,
+    utc_init,
+    utc_dispose,
+    system_utc_diff,
+    system_utc_offset,
+    system_utc_normalise,
+    system_utc_aux,
+    system_utc_epoch 
+  };
+
+
+/* BST: Applied to any other time zone.
+ *
+ * From <http://www.direct.gov.uk/en/Governmentcitizensandrights/LivingintheUK/DG_073741>
+ *
+ *  - In spring, the clocks go forward 1h at 0100 GMT on the last Sunday in March.
+ *  - In autumn, the clocks go back 1h at 0200 BST on the last Sunday in October.
+ */
 
 static inline int is_gregorian_leap_year(int yr)
 {
@@ -118,11 +335,15 @@ int timecalc_zone_new(int system,
 		      void *arg)
 {
   timecalc_zone_t *prototype = NULL;
-
+  int rv;
+  
   switch (system)
     {
     case TIMECALC_SYSTEM_GREGORIAN_TAI:
       prototype = &s_system_gtai;
+      break;
+    case TIMECALC_SYSTEM_UTC:
+      prototype = &s_system_utc;
       break;
     }
   if (prototype == NULL)
@@ -136,23 +357,31 @@ int timecalc_zone_new(int system,
       (timecalc_zone_t *)malloc(sizeof(timecalc_zone_t));
 
     memcpy(z, prototype, sizeof(timecalc_zone_t));
-    z->init(z, arg);
+    rv = z->init(z, arg);
+    if (rv) 
+      {
+	free(z);
+	return TIMECALC_ERR_INIT_FAILED;
+      }
+
     (*out_zone) = z;
   }
-
+  
   return 0;
 }
 
 int timecalc_zone_dispose(timecalc_zone_t **io_zone)
 {
+  int rv = 0;
+  
   if (!io_zone || !(*io_zone)) { return 0; }
   {
     timecalc_zone_t *t = *io_zone;
-    t->dispose(t);
+    rv = t->dispose(t);
     free(t);
   }
   (*io_zone) = NULL;
-  return 0;
+  return rv;
 }
 
 int timecalc_calendar_cmp(const timecalc_calendar_t *a,
@@ -195,30 +424,35 @@ int timecalc_zone_add(timecalc_zone_t *zone,
 {
   int rv;
   int64_t s;
+  timecalc_calendar_t offset, tmp;
 
 
+  memset(&offset, '\0', sizeof(timecalc_calendar_t));
   memcpy(out, date, sizeof(timecalc_calendar_t));
 
   s = ival->s;
 
   while (s > (1 << 30))
     {
-      out->second += (1<<30);
-      rv = zone->normalise(zone, out);
+      offset.second = (1<<30); 
+      rv = timecalc_op_offset(zone, &tmp, TIMECALC_OP_ADD, out, &offset);
+      memcpy(out, &tmp, sizeof(timecalc_calendar_t));
       if (rv) { return rv; }
       s -= (1<<30);
     }
   while (s < -(1<<30))
     {
-      out->second -= (1<<30);
-      rv = zone->normalise(zone, out);
+      offset.second = -(1<<30);
+      rv = timecalc_op_offset(zone, &tmp, TIMECALC_OP_ADD, out, &offset);
+      memcpy(out, &tmp, sizeof(timecalc_calendar_t));
       if (rv) { return rv; }
       s += (1<<30);
     }
 
-  out->ns += ival->ns;
-  out->second += s;
-  rv = zone->normalise(zone, out);
+  offset.second = s;
+  offset.ns = ival->ns;
+  rv = timecalc_op_offset(zone, &tmp, TIMECALC_OP_ADD, out, &offset);
+  memcpy(out, &tmp, sizeof(timecalc_calendar_t));
   return rv;
 }
 
@@ -270,16 +504,113 @@ const char *timecalc_describe_system(const int system)
     }
 }
 
-
-/* -------------------- Generic NULL functions -------- */
-static void null_init(struct timecalc_zone_struct *self, void *arg)
+int timecalc_op_fieldwise(struct timecalc_zone_struct *zone,
+			  timecalc_calendar_t *dst,
+			  int op,
+			  const timecalc_calendar_t *opa,
+			  const timecalc_calendar_t *opb)
 {
-  return;
+  int rv;
+
+  switch (op)
+    {
+    case TIMECALC_OP_ADD:
+      dst->year = opa->year + opb->year;
+      dst->month = opa->month + opb->month;
+      dst->mday = opa->mday + opb->mday;
+      dst->hour = opa->hour + opb->hour;
+      dst->minute = opa->minute + opb->minute;
+      dst->second = opa->second + opb->second;
+      dst->ns = opa->ns + opb->ns;
+      break;
+    case TIMECALC_OP_SUBTRACT:
+      dst->year = opa->year - opb->year;
+      dst->month = opa->month - opb->month;
+      dst->mday = opa->mday - opb->mday;
+      dst->hour = opa->hour - opb->hour;
+      dst->minute = opa->minute - opb->minute;
+      dst->second = opa->second - opb->second;
+      dst->ns = opa->ns - opb->ns;
+      break;
+    default:
+      return TIMECALC_ERR_INVALID_ARGUMENT;
+    }
+
+  dst->system = opa->system;
+  rv = zone->cal_normalise(zone, dst);
+  return rv;
 }
 
-static void null_dispose(struct timecalc_zone_struct *self)
+int timecalc_op_offset(struct timecalc_zone_struct *zone,
+		       timecalc_calendar_t *io_cal,
+		       int op,
+		       const timecalc_calendar_t *src,
+		       const timecalc_calendar_t *offset)
 {
-  return;
+  timecalc_calendar_t work, src_offset, dst_offset;
+  int ls, rv;
+  
+  
+  // Work out the source offset.
+  rv = zone->cal_offset(zone, &src_offset, src, &ls);
+  if (rv) { return rv; }
+
+  // If the source was a leap second, add it into the source offset.
+  if (ls) { ++src_offset.second ; }
+
+  // No do the addition, ghastly as it is.
+  rv = timecalc_op_fieldwise(zone, &work, TIMECALC_OP_ADD, src, offset);
+  if (rv) { return rv; }
+  
+  // Now work out what the offset for the target is.
+  rv = zone->cal_offset(zone, &dst_offset, &work, &ls);
+  if (rv) { return rv; }
+
+  // Set dst = src for all offsets that are less than the most significant
+  // non-zero value in the offset (but not equal!)
+  {
+    // Year offsets are always applied.
+    int go = !!offset->year;
+    if (go) { dst_offset.month = src_offset.month; }
+    go = go || !!offset->month; 
+    if (go) { dst_offset.mday = src_offset.mday; }
+    go = go || !!offset->mday;
+    if (go) { dst_offset.hour = src_offset.hour; }
+    go = go || !!offset->minute;
+    if (go) { dst_offset.second = src_offset.second; }
+    go = go || !!offset->second;
+    if (go) { dst_offset.ns = src_offset.ns; }
+  }
+
+  // Now apply the offsets .. 
+  work.year += dst_offset.year - src_offset.year;
+  work.month += dst_offset.month - src_offset.month;
+  work.mday += dst_offset.mday - src_offset.mday;
+  work.hour += dst_offset.hour - src_offset.hour;
+  work.minute += dst_offset.minute - src_offset.minute;
+  work.second += dst_offset.second - src_offset.second;
+  work.ns += dst_offset.ns - src_offset.ns;
+
+  // .. and normalise one last time.
+  rv = zone->cal_normalise(zone, &work);
+  if (rv) { return rv; }
+
+  if (ls) { ++work.second; }
+
+  memcpy(io_cal, &work, sizeof(timecalc_calendar_t));
+  return 0;
+}
+
+
+/* -------------------- Generic NULL functions -------- */
+static int null_init(struct timecalc_zone_struct *self, void *arg)
+{
+  return 0;
+}
+
+static int null_dispose(struct timecalc_zone_struct *self)
+{
+  return 0;
 }
 
 /* -------------------- Gregorian TAI ---------------- */
@@ -346,9 +677,22 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
   return 0;
 }
 
+
+static int system_gtai_offset(struct timecalc_zone_struct *self,
+				  timecalc_calendar_t *offset,
+				  const timecalc_calendar_t *src,
+				  int *leap_second)
+{
+  // Particularly easy ..
+  memset(offset, '\0', sizeof(timecalc_calendar_t));
+  *leap_second = 0;
+  return 0;
+}
+
 static int system_gtai_normalise(struct timecalc_zone_struct *self,
 				 timecalc_calendar_t *io_cal)
 {
+  // And normalise .
   int done = 0;
 
   // Convert any negatives to positives ..
@@ -445,7 +789,8 @@ static int system_gtai_normalise(struct timecalc_zone_struct *self,
       ++done;
     }
 
-  return 0; 
+  return 0;
+
 }
 
 static int system_gtai_aux(struct timecalc_zone_struct *self,
@@ -508,6 +853,215 @@ static int system_gtai_epoch(struct timecalc_zone_struct *self,
   
   return 0;
 }
+
+/* ---------------------- UTC ---------------------- */
+
+static int system_utc_offset(struct timecalc_zone_struct *self,
+			     timecalc_calendar_t *dest,
+			     const timecalc_calendar_t *src,
+			     int *is_leap_second)
+{
+  const int nr_entries = sizeof(utc_lookup_table)/sizeof(utc_lookup_entry_t);
+  timecalc_interval_t iv = { 0, 0 };
+  int i;
+  int cmp_value;
+  int src_tai;
+  timecalc_calendar_t utcsrc;
+
+  if (src->system == TIMECALC_SYSTEM_GREGORIAN_TAI)
+    {
+      // The source is in TAI.
+      src_tai = 1;
+    }
+  else if (src->system == TIMECALC_SYSTEM_UTC)
+    {
+      src_tai = 0;
+      memcpy(&utcsrc, src, sizeof(timecalc_calendar_t));
+    }
+  else
+    {
+      return TIMECALC_ERR_BAD_SYSTEM;
+    }
+
+  
+  (*is_leap_second) = 0;
+
+  // First entry in the table is a sentinel.
+  for (i = 1 ;i < nr_entries; ++i)
+    {
+      utc_lookup_entry_t *current = &utc_lookup_table[i];
+
+      // UTC references itself (joy!) so that if the source is TAI we need
+      // to add the current entry before comparing.
+      if (src_tai)
+	{
+	  memcpy(&utcsrc, src, sizeof(timecalc_calendar_t));
+	  utcsrc.second += utc_lookup_table[i].utctai.s;
+	  utcsrc.ns += utc_lookup_table[i].utctai.ns;
+	  self->cal_normalise(self, &utcsrc);
+	}
+
+      // We synthetically zero utcsrc.ns so that the compare function
+      // will return 0 when we are exactly on a leap second.
+      utcsrc.ns = 0;
+
+      cmp_value = timecalc_calendar_cmp(&utcsrc, &current->when);
+      
+      // If we are before this entry, the previous entry applies
+      if (cmp_value < 0)
+	{
+	  break;
+	}
+      
+      
+      if (cmp_value == 0)
+	{
+	  // This is a leap second. Are we going forward or back? If the previous
+	  // value is < current, we're going forward, else we're going back.
+	  //
+	  // Also table indices below UTC_LOOKUP_MIN_LEAP_SECOND are sync points
+	  // and not leap seconds per se.
+	  (*is_leap_second) = (i >= UTC_LOOKUP_MIN_LEAP_SECOND) && 
+	    (timecalc_interval_cmp(&utc_lookup_table[i-1].utctai, 
+				   &current->utctai) > 0);
+	  iv = current->utctai;
+	  break;
+	}
+
+      // If we pass this point, this table entry applies.
+      iv = utc_lookup_table[i].utctai;
+    }
+	 
+  
+  // Right. If we're going to UTC, add the correction. If to
+  // TAI, subtract it.
+  memset(dest, '\0', sizeof(timecalc_calendar_t));
+
+  // If we're going to UTC and this is a -ve leap second, add one to 
+  // the number of seconds before we normalise and record that we're
+  // in the 60th second later.
+  dest->second += iv.s;
+  dest->ns += iv.ns;
+  if (*is_leap_second) { --dest->second; }
+
+  return 0;
+}
+
+static int system_utc_normalise(struct timecalc_zone_struct *self,
+				timecalc_calendar_t *io_cal)
+{
+  timecalc_zone_t *gtai = (timecalc_zone_t *)self->handle;
+
+  // Our underlying calendar is gtai.
+  return gtai->cal_normalise(gtai, io_cal);
+}
+
+static int system_utc_diff(struct timecalc_zone_struct *self,
+			   timecalc_interval_t *ival,
+			   const timecalc_calendar_t *before,
+			   const timecalc_calendar_t *after)
+{
+  // Convert UTC to TAI for both before and after, then call down.
+  int ls;
+  timecalc_calendar_t src_offset, dst_offset;
+  timecalc_calendar_t tai_b, tai_a;
+  int rv;
+
+  if (!(before->system == TIMECALC_SYSTEM_UTC || 
+	before->system == TIMECALC_SYSTEM_GREGORIAN_TAI) || 
+      !(after->system == TIMECALC_SYSTEM_UTC ||
+	after->system == TIMECALC_SYSTEM_GREGORIAN_TAI))
+    {
+      return TIMECALC_ERR_BAD_SYSTEM;
+    }
+  
+  // Number of seconds between two dates. Get the offsets for both..
+  if (before->system == TIMECALC_SYSTEM_UTC)
+    {
+      rv = self->cal_offset(self, &src_offset, before, &ls);
+      if (rv) { return rv; }
+      if (ls) { ++src_offset.second; }
+
+      // .. and subtract .. 
+      rv = timecalc_op_fieldwise(self, 
+				 &tai_b,
+				 TIMECALC_OP_ADD,
+				 before, &src_offset);
+      if (rv) { return rv; }
+      tai_b.system = TIMECALC_SYSTEM_GREGORIAN_TAI;
+    }
+
+  if (after->system == TIMECALC_SYSTEM_UTC)
+    {
+      rv =self->cal_offset(self, &dst_offset, after, &ls);
+      if (rv) { return rv; }
+      if (ls) { ++dst_offset.second; }
+
+      // And subtract.
+      rv = timecalc_op_fieldwise(self, 
+				 &tai_a,
+				 TIMECALC_OP_ADD,
+				 after, &dst_offset);
+      if (rv) { return rv; }
+      tai_a.system = TIMECALC_SYSTEM_GREGORIAN_TAI;
+    }
+
+  if (rv) { return rv; }
+
+  // Now our times are both in gregorian tai .. 
+  {
+    timecalc_zone_t *tai = (timecalc_zone_t *)(self->handle);
+
+    return tai->diff(tai, ival, &tai_a, &tai_b);
+  }
+}
+
+static int system_utc_aux(struct timecalc_zone_struct *self,
+			  const timecalc_calendar_t *calc,
+			  timecalc_calendar_aux_t *aux)
+{
+  // Same as for the underlying calendar.
+  timecalc_zone_t *gtai = (timecalc_zone_t *)self->handle;
+
+  return gtai->aux(gtai, calc, aux);
+}
+
+static int system_utc_epoch(struct timecalc_zone_struct *self,
+			    timecalc_calendar_t *aux)
+{
+  // timecalc_zone_t *gtai = (timecalc_zone_t *)self->handle;
+
+  // The UTC epoch is 'properly' in 1961, but 1972 has the advantage
+  // that it was when the UTC and TAI seconds harmonised.
+  static const timecalc_calendar_t epoch = 
+    { 1972, TIMECALC_JANUARY, 1, 0, 0, 0, 0, TIMECALC_SYSTEM_UTC };
+      
+  memcpy(aux, &epoch, sizeof(timecalc_calendar_t));
+  return 0;
+}
+
+static int utc_init(struct timecalc_zone_struct *self,
+	      void *arg)
+{
+  int rv;
+  timecalc_zone_t *q = NULL;
+
+  rv = timecalc_zone_new(TIMECALC_SYSTEM_GREGORIAN_TAI, &q, NULL);
+  if (rv) { return rv; }
+  self->handle = (void *)q;
+  return 0;
+}
+
+static int utc_dispose(struct timecalc_zone_struct *self)
+{
+  timecalc_zone_t *q = (timecalc_zone_t *)self->handle;
+  int rv;
+
+  rv = timecalc_zone_dispose(&q);
+  self->handle = NULL;
+  return rv;
+}
+
 
 
 /* End file */

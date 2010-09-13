@@ -75,6 +75,10 @@
 /** TAI, Gregorian calendar */
 #define TIMECALC_SYSTEM_GREGORIAN_TAI     0 
 
+/** BST */
+#define TIMECALC_SYSTEM_UTC               2
+
+
 
 //! You've tried to perform an operation on an unknown system.
 #define TIMECALC_ERR_NO_SUCH_SYSTEM (-4000)
@@ -85,6 +89,19 @@
 //! Attempt to perform an operation on system A with a date of
 //! system B
 #define TIMECALC_ERR_NOT_MY_SYSTEM        (-3998)
+
+//! Attempt to perform an operation on a date for which the given
+//! timezone is not (well) defined.
+#define TIMECALC_ERR_UNDEFINED_DATE       (-3997)
+
+//! Initialisation or disposal failed.
+#define TIMECALC_ERR_INIT_FAILED          (-3996)
+
+//! Bad time system
+#define TIMECALC_ERR_BAD_SYSTEM           (-3995)
+
+//! Invalid argument
+#define TIMECALC_ERR_INVALID_ARGUMENT     (-3994)
 
 
 /** Represents an interval.
@@ -109,6 +126,21 @@ typedef struct timecalc_calendar_struct
 {
   /** Year */
   int year;
+
+
+#define TIMECALC_JANUARY    0
+#define TIMECALC_FEBRUARY   1
+#define TIMECALC_MARCH      2
+#define TIMECALC_APRIL      3
+#define TIMECALC_MAY        4
+#define TIMECALC_JUNE       5
+#define TIMECALC_JULY       6
+#define TIMECALC_AUGUST     7 
+#define TIMECALC_SEPTEMBER  8
+#define TIMECALC_OCTOBER    9
+#define TIMECALC_NOVEMBER  10
+#define TIMECALC_DECEMBER  11 
+
 
   /** Month (0-11) */
   int month;
@@ -149,19 +181,34 @@ typedef struct timecalc_calendar_aux_struct
 
 } timecalc_calendar_aux_t;
 
-/** Represents a time zone */
+/** Represents a time zone 
+ *
+ *  Each time zone has a calendar and an offset.
+ *
+ *  The calendar is the underlying monotonic date system to which this time zone
+ *  applies. It is required to be at least piecewise continuous and attempts to
+ *  perform calculations with discontinuous portions of the calendar (e.g. the 
+ *  'lost days' between Julian and Gregorian) are likely to return 
+ *  TIMECALC_ERR_UNDEFINED_DATE.
+ *
+ *  The offset is the (typically discontinuous) offset from that monotonic calendar
+ *  induced by the conversion to sidereal time,  your current longitude, DST, etc.
+ *
+ *  The distinction is that offsets to your current date and time are applied to
+ *  the calendar and then corrected by the offset.
+ */
 typedef struct timecalc_zone_struct
 {
   //! 'user' handle.
   void *handle;
 
   /** Initialize this zone structure; mainly used internally */
-  void (*init)(struct timecalc_zone_struct *self, void *arg);
+  int (*init)(struct timecalc_zone_struct *self, void *arg);
 
   /** Kill this zone structure (but don't free() it - just any 
    *   internal data) - mainly used by timecalc_zone_dispose() 
    */
-  void (*dispose)(struct timecalc_zone_struct *self);
+  int (*dispose)(struct timecalc_zone_struct *self);
 
   /** How much time has elapsed between 'before' and 'after' ? 
    *
@@ -172,10 +219,40 @@ typedef struct timecalc_zone_struct
 	      const timecalc_calendar_t *before,
 	      const timecalc_calendar_t *after);
 
-  /** Normalise the given calendar time (if you can)
+
+  /** Obtain the calendar_t required to be added to the underlying
+   *  calendar to get it into this time zone.
+   *
+   *  Note that the quantities in this calendar_t are not normalised;
+   *   they are in 'natural' form, because timecalc_add_offset() needs
+   *   to know which additional offsets to knock out when running -
+   *   see the documentation for that function for details.
+   *
+   *  If leap_second = 1, there is an extra leap second just after
+   *   the current one - remember to add it. This rather odd convention
+   *   makes timecalc_zone_convert() faster.
    */
-  int (*normalise)(struct timecalc_zone_struct *self,
-		   timecalc_calendar_t *io_cal);
+  int (*cal_offset)(struct timecalc_zone_struct *self,
+		    timecalc_calendar_t *offset,
+		    const timecalc_calendar_t *src, 
+		    int *leap_second);
+
+  /** Perform a calendar normalisation. This normalises 'cal_io' to
+   *  the underlying calendar system in use (before tai_offset() is
+   *  added), to which the offsets of this time zone are then applied.
+   *
+   *  Note that this causes immense difficulty for time zones like
+   *  BST, since they must normalise to the Julian or Gregorian
+   *  calendars depending on whether the ultimate answer is likely to
+   *  be before or after 1752.
+   *
+   *  In practice, we mostly ignore this as dates for which these
+   *  problems arise are rare and you can always return 
+   *  TIMECALC_ERR_UNDEFINED_DATE
+   */
+  int (*cal_normalise)(struct timecalc_zone_struct *self,
+		       timecalc_calendar_t *iocal);
+		    
 
   /** Compute auxilliary info for a calendar date */
   int (*aux)(struct timecalc_zone_struct *self,
@@ -240,6 +317,64 @@ int timecalc_zone_add(timecalc_zone_t *zone,
 		      timecalc_calendar_t *out,
 		      const timecalc_calendar_t *date,
 		      const timecalc_interval_t *ival);
+
+
+// dst = a + b
+#define TIMECALC_OP_ADD 0
+
+// dst = a - b 
+#define TIMECALC_OP_SUBTRACT 1
+
+
+/** Add 'offset' to 'src', and put the result in 'dst'
+ *
+ *  After discussions with Tony and JC, it appears that the correct
+ *  way to do this is as follows;
+ *
+ *   * Convert src to TAI , noting the calendar_t -type offset 'o_src'
+ *   * Add offset to src in TAI, obtaining d_1
+ *   * Work out what the calendar_t offset between d_1 and dst is , 'o_dst'
+ *   * For all fields in offset which are non-zero, make o_dst.field = o_src.field for
+ *       fields below them in the order year > month > day > hour > minute > second > ns
+ *   * Add (o_dst - o_src) to get the result.
+ *   * Normalise again to get a normalised result.
+ *
+ *  The result's system is src->system .
+ * 
+ */
+int timecalc_op_offset(struct timecalc_zone_struct *zone,
+		    timecalc_calendar_t *dst,
+		       int op,
+		       const timecalc_calendar_t *src,
+		       const timecalc_calendar_t *offset);
+
+
+
+/** Perform a literal add and normalise for two calendar times.
+ *
+ *  Add fields fieldwise and then normalise - as opposed to the 
+ *  ghastly (but 'probably what you want') code in timecalc_add_offset()
+ *
+ *  The target's system is a's system (b can be anything you want).
+ */
+int timecalc_op_fieldwise(struct timecalc_zone_struct *zone,
+			  timecalc_calendar_t *dst,
+			  int op,
+			  const timecalc_calendar_t *a,
+			  const timecalc_calendar_t *b);
+
+
+/** Convert one date to another with the aid of an epoch; the actual
+ *  epoch doesn't really matter except that most timezones use some
+ *  kind of loop so keeping the epoch close to the dates will 
+ *  make your calculation faster.
+ */
+int timecalc_zone_convert(timecalc_calendar_t *dest,
+			  timecalc_zone_t *from,
+			  timecalc_zone_t *to,
+			  const timecalc_calendar_t *src,
+			  const timecalc_calendar_t *epoch);
+			  
 
 /** Retrieve a timezone for a given zone code 
  *
