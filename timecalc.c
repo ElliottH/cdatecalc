@@ -14,7 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DEBUG_UTC 0
+#define DEBUG_GTAI 1
+#define DEBUG_UTC 1
 #define DEBUG_UTCPLUS 0
 #define DEBUG_BST 1
 
@@ -188,19 +189,19 @@ static utc_lookup_entry_t utc_lookup_table[] =
       { -19, 0 }
     },
     
-    { { 1981, TIMECALC_JUNE, 30, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
+    { { 1981, TIMECALC_JUNE, 30, 23, 59, 59, 0,  TIMECALC_SYSTEM_UTC },
       { -20, 0 }
     },
 
-    { { 1982, TIMECALC_JUNE, 30, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
-      { -231, 0 }
+    { { 1982, TIMECALC_JUNE, 30, 23, 59, 59, 0,  TIMECALC_SYSTEM_UTC },
+      { -21, 0 }
     },
 
-    { { 1983, TIMECALC_JUNE, 30, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
+    { { 1983, TIMECALC_JUNE, 30, 23, 59, 59, 0, TIMECALC_SYSTEM_UTC },
       { -22, 0 }
     },
 
-    { { 1985, TIMECALC_JUNE, 30, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
+    { { 1985, TIMECALC_JUNE, 30, 23, 59, 59, 0, TIMECALC_SYSTEM_UTC },
       { -23, 0 }
     },
     
@@ -216,15 +217,15 @@ static utc_lookup_entry_t utc_lookup_table[] =
       { -26, 0 }
     },
 
-    { { 1992, TIMECALC_JUNE, 323, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
+    { { 1992, TIMECALC_JUNE, 30, 23, 59, 59, 0, TIMECALC_SYSTEM_UTC },
       { -27, 0 }
     },
 
-    { { 1993, TIMECALC_JUNE, 323, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
+    { { 1993, TIMECALC_JUNE, 30, 23, 59, 59, 0, TIMECALC_SYSTEM_UTC },
       { -28, 0 }
     },
 
-    { { 1994, TIMECALC_JUNE, 323, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
+    { { 1994, TIMECALC_JUNE, 30, 23, 59, 59, 0, TIMECALC_SYSTEM_UTC },
       { -29, 0 }
     },
 
@@ -232,7 +233,7 @@ static utc_lookup_entry_t utc_lookup_table[] =
       { -30, 0 }
     },
 
-    { { 1997, TIMECALC_JUNE, 323, 59, 59, 0, 0, TIMECALC_SYSTEM_UTC },
+    { { 1997, TIMECALC_JUNE, 30, 23, 59, 59, 0, TIMECALC_SYSTEM_UTC },
       { -331, 0 }
     },
 
@@ -983,7 +984,10 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
     while (1)
       {
 
+#if DEBUG_GTAI
 	printf("-> d cur = %d curday = %d \n", cur, curday);
+#endif
+
 	// Advance by a day each time, until we hit 'after'.
 	if (cur == last && curday == lastday && curyear == lastyear) 
 	  {
@@ -1062,7 +1066,12 @@ static int system_gtai_op(struct timecalc_zone_struct *self,
   int rv;
 
   rv = timecalc_simple_op(dest, src, offset, op);
-  printf("gtai_op: simple_op = %s\n", dbg_pdate(dest));
+#if DEBUG_GTAI
+  printf("gtai_op: src                        = %s\n", dbg_pdate(src));
+  printf("gtai_op: offset                     = %s\n", dbg_pdate(offset));
+  printf("gtai_op: timecalc_simple_op returns = %s\n", dbg_pdate(dest));
+#endif
+
   if (rv) { return rv; }
 
   // Convert any negatives to positives ..
@@ -1434,6 +1443,12 @@ static int system_utc_op(struct timecalc_zone_struct *self,
       // Now the destination offset.
       rv = self->offset(self, &dst_diff, &dst_value);
       if (rv < 0) { return rv; }
+
+#if DEBUG_UTC
+      printf("utc_op:  src_diff         = %s \n", dbg_pdate(&src_diff));
+      printf("utc_op:  dst_value        = %s \n", dbg_pdate(&dst_value));
+      printf("utc_op:  dst_diff         = %s \n", dbg_pdate(&dst_diff));
+#endif
       
       // If source and destination diffs are the same, we can just return the result.
       if (!timecalc_calendar_cmp(&src_diff, &dst_diff))
@@ -1886,8 +1901,20 @@ static int system_bst_op(struct timecalc_zone_struct *self,
   printf("bst_op: adj = %s \n", dbg_pdate(&adj));
 #endif
 
+  // Now we're in UTC.
+  adj.system = utc->system;
+
+#if DEBUG_BST
+  printf("bst_op: -------- before utc->op ---- \n");
+#endif
+
+
   rv = utc->op(utc, &tgt, &adj, offset, op);
   if (rv) { return rv; }
+
+#if DEBUG_BST
+  printf("bst_op: ------- after utc->op ----\n");
+#endif
   
   rv = self->offset(self, &diff, &tgt);
   if (rv) { return rv; }

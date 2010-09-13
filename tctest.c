@@ -965,7 +965,7 @@ static void test_bst(void)
       { 1983, TIMECALC_JULY, 1, 0, 59, 59, 0, TIMECALC_SYSTEM_BST };
     static timecalc_calendar_t one_second = 
       { 0, 0, 0, 0, 0, 1, 0, TIMECALC_SYSTEM_OFFSET };
-    static const char *result = "";
+    static const char *result = "1983-07-01 00:59:60.000000000 BST";
     
     rv = timecalc_op(bst, &tgt, &a_value, &one_second, TIMECALC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add 1s to BST time [7]");
