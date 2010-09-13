@@ -14,11 +14,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DEBUG_GTAI 1
-#define DEBUG_UTC 1
+#define DEBUG_GTAI 0
+#define DEBUG_UTC 0
 #define DEBUG_UTCPLUS 0
-#define DEBUG_BST 1
-#define DEBUG_REBASED 1
+#define DEBUG_BST 0
+#define DEBUG_REBASED 0
+#define DEBUG_RAISE 0
+#define DEBUG_LOWER 0
+
+#define DEBUG_ANY (DEBUG_GTAI || DEBUG_UTC || DEBUG_UTCPLUS || DEBUG_BST || \
+		   DEBUG_REBASED || DEBUG_RAISE || DEBUG_LOWER)
 
 #define ONE_MILLION 1000000
 #define ONE_BILLION (ONE_MILLION * 1000)
@@ -28,7 +33,9 @@
 #define MAX(x,y) (((x) > (y)) ? (x) : (y))
 #define SWAP(x,y) { __typeof(x) __tmp; __tmp = (x); (x) = (y); (y) = __tmp; }
 
+#if DEBUG_ANY
 static const char *dbg_pdate(const timecalc_calendar_t *cal);
+#endif
 
 
 /** A generic diff function: lower both dates and then call diff()
@@ -848,11 +855,13 @@ int timecalc_zone_raise(timecalc_zone_t *zone,
   int rv;
   timecalc_zone_t *low;
   
-  printf("!\n");
   rv = zone->lower_zone(zone, &low);
   if (rv) { return rv; }
 
-  printf("Raise %s to %d (low system %d)\n", dbg_pdate(src), zone->system, low->system);
+#if DEBUG_RAISE
+   printf("Raise %s to %d (low system %d)\n", dbg_pdate(src), zone->system, low->system);
+#endif
+
 
   if (src->system == low->system) 
     {
@@ -867,7 +876,10 @@ int timecalc_zone_raise(timecalc_zone_t *zone,
 
   if (rv == TIMECALC_ERR_NOT_MY_SYSTEM)
     {
+#if DEBUG_RAISE
       printf("Can't raise %s \n", dbg_pdate(src));
+#endif
+
 
       // Try lower.
       
@@ -894,7 +906,10 @@ int timecalc_zone_raise(timecalc_zone_t *zone,
     }
   
 
+#if DEBUG_RAISE
   printf("Simple add of %s .. \n", dbg_pdate(&dst_offset));
+#endif
+
   {
     timecalc_calendar_t tmp;
 
@@ -910,7 +925,10 @@ int timecalc_zone_raise(timecalc_zone_t *zone,
   if (rv) { return rv; }
   dest->system = zone->system;
 
+#if DEBUG_RAISE
   printf("*** raised() dest = %s \n", dbg_pdate(dest));
+#endif
+
   
   return 0;
 }
@@ -923,8 +941,10 @@ int timecalc_zone_lower_to(timecalc_zone_t *zone,
 {
   timecalc_calendar_t current;
 
+#if DEBUG_LOWER
   printf("Lower %d to %d (z = %d, h = 0x%08x).. \n", src->system, to_system, zone->system, 
 	 (unsigned int)zone->handle);
+#endif
 
   memcpy(&current, src, sizeof(timecalc_calendar_t));
   while (current.system != to_system)
@@ -938,10 +958,16 @@ int timecalc_zone_lower_to(timecalc_zone_t *zone,
 	  return rv; 
 	}
 
+#if DEBUG_LOWER
       printf("lower_zone: l = 0x%08x z = %d\n", (unsigned int) l, (l ? l->system :-1));
+#endif
+
       if (!l) 
 	{
+#if DEBUG_LOWER
 	  printf("No lower zone than %d (cur = %d)\n", zone->system, current.system);
+#endif
+
 	  if (to_system == -1)
 	    {
 	      // This is the lowest zone.
@@ -957,10 +983,16 @@ int timecalc_zone_lower_to(timecalc_zone_t *zone,
       if (current.system == zone->system)
 	{
 	  // We can lower it - let's have a go.
+#if DEBUG_LOWER
 	  printf("Lower..\n");
+#endif
+
 	  rv = timecalc_zone_lower(zone, dest, &l, &current);
 	  if (rv) { return rv; }
+#if DEBUG_LOWER
 	  printf("lower to %d \n", l->system);
+#endif
+
 	  memcpy(&current, dest, sizeof(timecalc_calendar_t));
 	}
       
@@ -1004,12 +1036,18 @@ int timecalc_zone_lower(timecalc_zone_t *zone,
 
   // Now ..
 
+#if DEBUG_LOWER
   printf("src[2] = %s\n", dbg_pdate(src));
+#endif
+
 
   memcpy(dest, src, sizeof(timecalc_calendar_t));
   dest->system = (*lower)->system;  
 
+#if DEBUG_LOWER
   printf("lower offset = %s \n",dbg_pdate(&offset));
+#endif
+
 
   timecalc_negate(&offset);
 
@@ -1060,11 +1098,13 @@ static int system_lower_diff(struct timecalc_zone_struct *self,
   rv = timecalc_zone_lower(self, &al, &z, after);
   if (rv) { return rv; }
 
+#if DEBUG_LOWER
   printf("system_lower_diff[] before = %s \n", dbg_pdate(before));
   printf("system_lower_diff[] bl     = %s \n", dbg_pdate(&bl));
 
   printf("system_lower_diff[] after   = %s \n", dbg_pdate(after));
   printf("system_lower_diff[] al     = %s \n", dbg_pdate(&al));
+#endif
 
   return z->diff(z, ivalp, &bl, &al);
 }
@@ -1084,7 +1124,10 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
    *
    */
 
+#if DEBUG_GTAI
   printf("---gtai_diff()\n");
+#endif
+
 
   if (before->system != after->system) { return TIMECALC_ERR_SYSTEMS_DO_NOT_MATCH; }
   if (before->system != TIMECALC_SYSTEM_GREGORIAN_TAI) 
@@ -1110,8 +1153,11 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
   memcpy(&ival, ivalp, sizeof(timecalc_interval_t));
 
 
+#if DEBUG_GTAI
   printf("init: s = %lld ns = %ld \n", 
 	 ival.s, ival.ns);
+#endif
+
   {
     int cur = before->month;
     int curday = before->mday;
@@ -1164,21 +1210,33 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
       }
   }
 
+#if DEBUG_GTAI
   printf("ival.s = %lld\n", ival.s);
+#endif
+
   {
     int hrdiff = after->hour - before->hour;
 
+#if DEBUG_GTAI
     printf("hrdiff = %d \n", hrdiff);
+#endif
+
     ival.s += SECONDS_PER_HOUR * hrdiff;
   }
 
   {
     int mdiff = after->minute - before->minute;
 
+#if DEBUG_GTAI
     printf("mdiff = %d \n", mdiff);
+#endif
+
     ival.s += SECONDS_PER_MINUTE *mdiff;
   }
+#if DEBUG_GTAI
   printf("sdiff = %d \n", (after->second -before->second));
+#endif
+
   ival.s += (after->second - before->second);
   ival.ns = (after->ns - before->ns);
   if (ival.ns < 0)
@@ -1188,7 +1246,10 @@ static int system_gtai_diff(struct timecalc_zone_struct *self,
     }
   
   memcpy(ivalp, &ival, sizeof(timecalc_interval_t));
+#if DEBUG_GTAI
   printf("---end gtai_diff()\n");
+#endif
+
 
   return 0;
 }
@@ -1883,12 +1944,14 @@ int system_utcplus_lower_zone(struct timecalc_zone_struct *self,
 
 
 
+#if DEBUG_ANY
 static const char *dbg_pdate(const timecalc_calendar_t *cal)
 {
   static char buf[128];
   timecalc_calendar_sprintf(buf, 128, cal);
   return buf;
 }
+#endif
 
 /* ----------------------------- BST ------------------- */
 
@@ -2369,7 +2432,10 @@ int timecalc_rebased_tai(struct timecalc_zone_struct **dst,
   timecalc_interval_t iv;
   timecalc_zone_t *lzone;
 
+#if DEBUG_REBASED
   printf("> rebased_tai()\n");
+#endif
+
   rv = timecalc_zone_lower_to(human_zone, &c1, &lzone, human_time, machine_time->system);
   if (rv) { return rv; }
 
