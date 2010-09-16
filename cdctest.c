@@ -34,30 +34,30 @@
 #include <string.h>
 
 #define ASSERT_INTERVALS_EQUAL(x,y,s)		\
-  if (cdc_interval_cmp((x),(y))) { faili((x),(y),"Intervals not equal",\
+  if (cdc_interval_cmp((x),(y))) { return faili((x),(y),"Intervals not equal",\
 					 (s),__FILE__,__LINE__, __func__); }  
 
 #define ASSERT_INTEGERS_EQUAL(x,y,s) \
-  if ((x) != (y)) { failint((x),(y),"Numbers not equal",\
+  if ((x) != (y)) { return failint((x),(y),"Numbers not equal",\
 			    (s), __FILE__, __LINE__, __func__); }
 
 
 #define ASSERT_STRINGS_EQUAL(x,y,s) \
-  if (strcmp((x),(y))) { failstring((x),(y),"Strings not equal",\
+  if (strcmp((x),(y))) { return failstring((x),(y),"Strings not equal",\
 				    (s), __FILE__, __LINE__, __func__); }
 
 
-static void failint(int x, int y,
+static int failint(int x, int y,
 		    const char *leg1, const char *leg2,
 		    const char *file, const int line,
 		    const char *func);
 
-static void failstring(const char *x, const char *y,
+static int failstring(const char *x, const char *y,
 		    const char *leg1, const char *leg2,
 		    const char *file, const int line,
 		    const char *func);
 
-static void faili(const cdc_interval_t *a, 
+static int faili(const cdc_interval_t *a, 
 		  const cdc_interval_t *b,
 		  const char *leg1,
 		  const char *leg2,
@@ -65,17 +65,27 @@ static void faili(const cdc_interval_t *a,
 		  const int line,
 		  const char *func);
 
-static void test_gtai(void);
-static void test_interval(void);
-static void test_calendar(void);
-static void test_utc(void);
-static void test_utcplus(void);
-static void test_bst(void);
-static void test_rebased(void);
-static void test_bounce(void);
+static int cdc_test_gtai(void);
+static int cdc_test_interval(void);
+static int cdc_test_calendar(void);
+static int cdc_test_utc(void);
+static int cdc_test_utcplus(void);
+static int cdc_test_bst(void);
+static int cdc_test_rebased(void);
+static int cdc_test_bounce(void);
 
+#define DO_TEST(x) { rv = (x); if (rv) { return rv; } }
+
+#ifdef COMPILE_AS_MAIN
 int main(int argn, char *args[])
+#else
+int cdc_test_function(int argn, char *args[])
+#endif
 {
+  int rv;
+
+
+
   if (argn != 2)
     {
       fprintf(stderr, "Syntax: tctest [seed]\n");
@@ -85,33 +95,34 @@ int main(int argn, char *args[])
   printf("> Using seed = %d \n", seed);
 
   printf("-- test_interval() \n");
-  test_interval();
+  DO_TEST(cdc_test_interval());
   
   printf("-- test_calendar() \n");
-  test_calendar();
+  DO_TEST(cdc_test_calendar());
 
   printf(" -- test_gtai()\n");
-  test_gtai();
+  DO_TEST(cdc_test_gtai());
+  
+  printf(" -- test_utc() \n");
+  DO_TEST(cdc_test_utc());
 
-   printf(" -- test_utc() \n");
-  test_utc();
-
-   printf(" -- test_utcplus() \n");
-  test_utcplus();
+  printf(" -- test_utcplus() \n");
+  DO_TEST(cdc_test_utcplus());
 
   printf(" -- test_bst() \n");
-  test_bst();
+  DO_TEST(cdc_test_bst());
 
   printf(" -- test_rebased() \n");
-  test_rebased();
+  DO_TEST(cdc_test_rebased());
 
   printf(" -- test_bounce() \n");
-  test_bounce();
-
+  DO_TEST(cdc_test_bounce());
+  
   return 0;
 }
 
-static void test_calendar(void)
+
+static int cdc_test_calendar(void)
 {
   const static cdc_calendar_t t1 = 
     { 1990, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
@@ -139,10 +150,12 @@ static void test_calendar(void)
   rv = cdc_calendar_sprintf(buf, 128, &t1);
   ASSERT_INTEGERS_EQUAL(rv, 33, "Wrong length for sprintf(t1)");
   ASSERT_STRINGS_EQUAL(buf, rep, "Wrong representation for t1");
+
+  return 0;
 }
 
 
-static void test_interval(void)
+static int cdc_test_interval(void)
 {
   const static cdc_interval_t a = { 6, -100 }, b = { 4010, 1000004000 };
   const static cdc_interval_t diff = { -4005, -4100 };
@@ -188,10 +201,12 @@ static void test_interval(void)
   const static cdc_interval_t zer = { 0, 0 };
   rv = cdc_interval_sgn(&zer);
   ASSERT_INTEGERS_EQUAL(0, rv,  "sgn(zer) is not correct");
+
+  return 0;
 }
 
 
-static void test_gtai(void)
+static int cdc_test_gtai(void)
 {
   cdc_zone_t *gtai;
   static const char *check_gtai_desc = "TAI";
@@ -373,11 +388,13 @@ static void test_gtai(void)
 
   rv = cdc_zone_dispose(&gtai);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose gtai");
+
+  return 0;
 }
 
 
 
-static void test_utc(void)
+static int cdc_test_utc(void)
 {
   cdc_zone_t *utc;
   static const char *check_utc_desc = "UTC";
@@ -673,10 +690,12 @@ static void test_utc(void)
 
   rv = cdc_zone_dispose(&utc);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose UTC");
+  
+  return 0;
 }
 
 
-static void test_utcplus(void)
+static int cdc_test_utcplus(void)
 {
   cdc_zone_t *utcplus;
   static const char *check_utcplus_dest = "UTC+0223";
@@ -817,9 +836,11 @@ static void test_utcplus(void)
     
   rv = cdc_zone_dispose(&utcplus);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose UTC+");
+
+  return 0;
 }
 
-static void test_bst(void)
+static int cdc_test_bst(void)
 {
   cdc_zone_t *bst;
   static const char *check_bst_desc = "BST";
@@ -1011,9 +1032,11 @@ static void test_bst(void)
 
   rv = cdc_zone_dispose(&bst);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() bst");
+
+  return 0;
 }
 
-static void test_rebased(void)
+static int cdc_test_rebased(void)
 {
   cdc_zone_t *rb;
   static const char *check_rb_desc = "REBASED*";
@@ -1072,9 +1095,10 @@ static void test_rebased(void)
   rv = cdc_zone_dispose(&tai);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() tai");
 
+  return 0;
 }
 
-static void test_bounce(void)
+static int cdc_test_bounce(void)
 {
   cdc_zone_t *bst;
   cdc_zone_t *offset;
@@ -1181,10 +1205,12 @@ static void test_bounce(void)
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() offset");
   rv = cdc_zone_dispose(&bst);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() bst");
+
+  return 0;
 }
 
 
-static void faili(const cdc_interval_t *a,
+static int faili(const cdc_interval_t *a,
 		  const cdc_interval_t *b,
 		  const char *leg1,
 		  const char *leg2,
@@ -1198,28 +1224,28 @@ static void faili(const cdc_interval_t *a,
 
   fprintf(stderr, "%s:%d (%s) Failed: %s %s (op1=%s, op2=%s)\n",
 	  file, line, func, leg1, leg2, bx, bx2);
-  exit(2);
+  return 2;
 }
 
-static void failint(int x, int y,
+static int failint(int x, int y,
 		    const char *leg1, const char *leg2,
 		    const char *file, const int line,
 		    const char *func)
 {
   fprintf(stderr, "%s:%d (%s) Failed: %s %s (op1=%d, op2=%d)\n",
 	  file, line, func,leg1,leg2, x, y);
-  exit(3);
+  return 3;
 }
 
 
-static void failstring(const char *x, const char *y,
+static int failstring(const char *x, const char *y,
 		    const char *leg1, const char *leg2,
 		    const char *file, const int line,
 		    const char *func)
 {
   fprintf(stderr, "%s:%d (%s) Failed: %s %s (op1=%s, op2=%s)\n",
 	  file, line, func,leg1,leg2, x, y);
-  exit(4);
+  return 4;
 }
 
 
