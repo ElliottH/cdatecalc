@@ -1,0 +1,26 @@
+# Muddle makefile for cdatecalc
+
+DESTDIR=$(MUDDLE_OBJ)
+export DESTDIR
+
+all:
+	$(MAKE) -C $(MUDDLE_SRC)
+
+# NB: Copy the include files into $(MUDDLE_OBJ)/include in case someone wants
+# to build again the stuff in $(MUDDLE_OBJ)
+install:
+	cp -r $(MUDDLE_SRC)/include/cdc $(MUDDLE_OBJ_INCLUDE)
+	-mkdir -p $(MUDDLE_INSTALL)/lib
+	cp $(MUDDLE_OBJ_LIB)/* $(MUDDLE_INSTALL)/lib
+
+config:
+	-mkdir -p $(MUDDLE_OBJ_OBJ)
+	-mkdir -p $(MUDDLE_OBJ_LIB)
+	-mkdir -p $(MUDDLE_OBJ)/bin
+	-mkdir -p $(MUDDLE_OBJ_INCLUDE)
+
+clean:
+	$(MAKE) -C $(MUDDLE_SRC) clean
+
+distclean:
+	rm -rf $(MUDDLE_OBJ)
