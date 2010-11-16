@@ -28,7 +28,7 @@
  */
 
 #include <stdint.h>
-#include "cdc.h"
+#include "cdc/cdc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

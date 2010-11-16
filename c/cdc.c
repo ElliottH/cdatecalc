@@ -27,7 +27,7 @@
  */
 
 #include <stdint.h>
-#include "cdc.h"
+#include "cdc/cdc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -754,7 +754,8 @@ int cdc_interval_sprintf(char *buf,
 {
   return snprintf(buf, n, 
 		  "%lld s %ld ns",
-		  a->s, a->ns);
+		  (long long int)a->s, 
+                  a->ns);
 }
 
 int cdc_calendar_sprintf(char *buf,
@@ -965,7 +966,7 @@ int cdc_zone_lower_to(cdc_zone_t *zone,
 #endif
 
   memcpy(&current, src, sizeof(cdc_calendar_t));
-  while (current.system != to_system)
+  while (current.system != (unsigned int)to_system)
     {
       cdc_zone_t *l = NULL;
       int rv;
