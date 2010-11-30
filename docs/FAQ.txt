@@ -1,0 +1,28 @@
+Frequently asked questions about cdatecalc
+-------------------------------------------
+
+Q. How do I get the current date and time in UNIX?
+
+A. UNIX is batshit. It runs its clock in TAI (i.e. disregarding leap seconds), but synchronises it to UTC via
+ ntp, the value of a correctly synchronised UNIX clock is actually different from that of an ideal free-running
+ UNIX clock. This requires some finesse:
+
+  * Create a calendar_time_t corresponding to the UNIX epoch
+  { 1970, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI, 0 }
+ 
+  * Now create an interval from the output of time() :
+
+    cdc_interval_t ival;
+    ival.s = time(NULL);
+    ival.ns = 0;
+
+   * Add the two:
+
+   cdc_zone_add( tai_zone, &out, &epoch, &ival );
+
+   * And reflect the fact that UNIX has synced to UTC, not TAI:
+    out.system = CDC_SYSTEM_UTC 
+
+  Note that if you're using the C++ API , you'll want to use a calendar time with the AS_IF_NS flag
+ set instead of an interval - the two are, in GREGORIAN_TAI, identical.
+

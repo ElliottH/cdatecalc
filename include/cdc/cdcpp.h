@@ -18,6 +18,9 @@
  * All Rights Reserved.
  */
 
+#ifndef CDCPP_H_INCLUDED
+#define CDCPP_H_INCLUDED
+
 #include <string>
 #include <stdint.h>
 #include <memory>
@@ -320,6 +323,8 @@ std::ostream& operator<<(std::ostream& os, const cdc::Operation::EnumT inOp);
 
 std::ostream& operator<<(std::ostream& os, const cdc::ErrorExceptionT inEE);
 
+
+#endif
 
 /* End file */
 
