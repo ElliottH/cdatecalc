@@ -363,6 +363,22 @@ namespace cdc
         return ret;
     }
 
+    void Diff(ZoneHandleT *zone,
+              IntervalT& outInterval,
+              const CalendarTimeT& inBefore,
+              const CalendarTimeT& inAfter)
+    {
+        cdc_calendar_t b, a;
+        cdc_interval_t result;
+        int rv;
+
+        calendarToCDC(b, inBefore);
+        calendarToCDC(a, inAfter);
+        rv = cdc_diff(Unwrap(zone), &result, &b, &a);
+        if (rv) { throw ErrorExceptionT(rv); }
+        intervalFromCDC(outInterval, result);
+    }
+
 
 
 }

@@ -309,6 +309,16 @@ namespace cdc
                           ZoneHandleT *srcZone,
                           const CalendarTimeT& inSrc,
                           int to_system);
+
+
+    /** How many ns have elapsed between before and after? 
+     */
+    void Diff(ZoneHandleT *zone,
+              IntervalT& outInterval,
+              const CalendarTimeT& inBefore,
+              const CalendarTimeT& inAfter);
+              
+              
 }
 
 bool operator>(const cdc::IntervalT& a, const cdc::IntervalT& b);
