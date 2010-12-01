@@ -1022,6 +1022,8 @@ int cdc_zone_lower_to(cdc_zone_t *zone,
       zone = l;
     }
 
+  // In case we started off with target_zone == source_zone
+  memcpy(dest, &current, sizeof(cdc_calendar_t));
   return 0;
 }
 

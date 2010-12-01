@@ -35,6 +35,8 @@ namespace cdc
         static const int kBST = 3;
         static const int kOffset = 4;
         static const int kLowest = 5;
+
+        //! Base is given with a fixed (60*12) offset. 
         static const int kUTCPlusBase = 0x1000;
         static const int kFlagTainted = (1<<30);
 
