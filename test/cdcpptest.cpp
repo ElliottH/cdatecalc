@@ -58,6 +58,14 @@ int main(int argn, char *args[])
         utc = cdc::LowerTo(&ptr, aZone.get(), after, cdc::System::kUTC);
         tgtZone.reset(ptr); ptr = NULL;
         std::cout << "In UTC = " << utc << std::endl;
+        
+        cdc::CalendarTimeT backInBST
+            (cdc::Raise(aZone.get(), utc));
+        std::cout << " Back in BST = " << backInBST << std::endl;
+        
+        
+        
+
     }
     catch (cdc::ErrorExceptionT ee)
     {

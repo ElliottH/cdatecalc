@@ -31,6 +31,11 @@ namespace
     {
         return (struct cdc_zone_struct *)(zh->mHandle);
     }
+
+    const struct cdc_zone_struct *Unwrap(const ZoneHandleT* zh)
+    {
+        return (const struct cdc_zone_struct *)(zh->mHandle);
+    }
     
     ZoneHandleT *Wrap(struct cdc_zone_struct *c, const bool owned = true)
     {
@@ -185,6 +190,12 @@ namespace cdc
         }
         mHandle = NULL;
         mOwned = false;
+    }
+
+    int ZoneHandleT::GetSystem(void) const
+    {
+        const cdc_zone_t *zh = Unwrap(this);
+        return zh->system;
     }
 
     std::auto_ptr<ZoneHandleT> ZoneHandleT::UTC()
@@ -392,6 +403,7 @@ bool operator==(const cdc::IntervalT& a, const cdc::IntervalT& b)
 {
     return cdc::IntervalT::Compare(a,b) == 0;
 }
+
 
 bool operator<(const cdc::IntervalT& a, const cdc::IntervalT& b)
 {

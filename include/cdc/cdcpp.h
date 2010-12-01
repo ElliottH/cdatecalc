@@ -213,6 +213,9 @@ namespace cdc
                                                     const CalendarTimeT& inMachineTime);
 
         
+
+        int GetSystem(void) const;
+
     private:
        // Intentionally unimplemented: this object may not be copied.
         ZoneHandleT(const ZoneHandleT &other);
@@ -324,6 +327,7 @@ namespace cdc
 bool operator>(const cdc::IntervalT& a, const cdc::IntervalT& b);
 bool operator<(const cdc::IntervalT& a, const cdc::IntervalT& b);
 bool operator==(const cdc::IntervalT& a, const cdc::IntervalT& b);
+static inline bool operator!=(const cdc::IntervalT& a, const cdc::IntervalT& b) { return !(a==b); }
 
 std::ostream& operator<<(std::ostream& os, const cdc::IntervalT& ival);
 std::ostream& operator<<(std::ostream& os, const cdc::CalendarTimeT& cal);
