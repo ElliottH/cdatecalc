@@ -147,6 +147,28 @@ static int cdc_test_reflexivity(unsigned int sys, const char *correct_descriptio
     return 0;
 }
 
+static int cdc_test_interval_parse(const cdc_interval_t *ival, const char *correct_description)
+{
+    char buf[256], buf2[256];
+    int rv;
+    cdc_interval_t cand;
+
+    cdc_interval_sprintf(buf, 256, ival);
+    sprintf(buf2, "%s: description of interval %ld, %ld is incorrect - %s", __func__,
+            ival->s, ival->ns, correct_description);
+    ASSERT_STRINGS_EQUAL(buf, correct_description, buf2);
+
+    rv = cdc_interval_parse(&cand, buf, 256);
+    sprintf(buf2, "%s: cannot parse %s", __func__, correct_description);
+    ASSERT_INTEGERS_EQUAL(rv, 0, buf2);
+
+    sprintf(buf2, "%s: wrong parse of %s - %ld, %ld", __func__, 
+            buf, cand.s, cand.ns);
+    rv = cdc_interval_cmp(&cand, ival);
+    ASSERT_INTEGERS_EQUAL(rv, 0, buf2);
+    return 0;
+}
+
 static int cdc_test_parse(void)
 {
     // Test some systems .. 
@@ -161,6 +183,25 @@ static int cdc_test_parse(void)
     cdc_test_reflexivity((CDC_SYSTEM_UTCPLUS_ZERO + (60 + 23)) | 
                          CDC_SYSTEM_TAINTED,
                          "UTC+0123*");
+
+    // Now check interval parsing.
+    {
+        const static cdc_interval_t ia = { 0, 0 };
+        cdc_test_interval_parse(&ia, "0 s 0 ns");
+    }
+
+    {
+        const static cdc_interval_t ia = { 23, 4502 };
+        cdc_test_interval_parse(&ia, "23 s 4502 ns");
+    }
+
+    {
+        const static cdc_interval_t ia = { 2329043, -2894219 };
+        cdc_test_interval_parse(&ia, "2329043 s -2894219 ns");
+    }
+    
+    
+   
 
     return 0;
 }
