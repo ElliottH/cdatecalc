@@ -240,6 +240,7 @@ namespace cdc
 
         std::string ToString() const;
 
+        Error::EnumT GetErrorCode() { return mErrorCode; }
     };
     
     namespace Operation
