@@ -107,6 +107,9 @@ namespace cdc
         long int mNs;
 
         IntervalT();
+        IntervalT(const std::string &inString);
+
+        std::string ToString() const;
 
         /** Return -1 if this interval is -ve, 0 if it's 0, +1 if +ve
          */
@@ -149,7 +152,11 @@ namespace cdc
             mHour = h; mMinute =m; mSecond = s; 
             mNs = ns;
         }
+
+        CalendarTimeT(const std::string& inString);
         
+        std::string ToString() const;
+
 
     };
 
@@ -320,6 +327,12 @@ namespace cdc
               IntervalT& outInterval,
               const CalendarTimeT& inBefore,
               const CalendarTimeT& inAfter);
+
+    /** Parse a system indicator */
+    unsigned int SystemFromString(const std::string& inSystem);
+    
+    /** Pring a system indicator */
+    std::string PrintSystem(const int inSystem);
               
               
 }

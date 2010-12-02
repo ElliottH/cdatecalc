@@ -157,6 +157,25 @@ namespace cdc
     }
 
     IntervalT::IntervalT() : mS(0), mNs(0) { }
+    IntervalT::IntervalT(const std::string& inString) 
+    {
+        cdc_interval_t x;
+        int rv;
+        rv = cdc_interval_parse(&x, inString.c_str(), inString.length());
+        if (rv) { throw ErrorExceptionT(rv); }
+        mS = x.s; mNs = x.ns;
+    }
+
+    std::string IntervalT::ToString() const
+    {
+        cdc_interval_t x;
+        intervalToCDC(x, *this);
+        char buf[128];
+        int rv;
+        rv = cdc_interval_sprintf(buf, 128, &x);
+        if (rv) { throw ErrorExceptionT(rv); }
+        return std::string(buf);
+    }
 
     int IntervalT::Compare(const IntervalT& a, const IntervalT& b)
     {
@@ -172,8 +191,27 @@ namespace cdc
         return cdc_interval_sgn(&x);
     }
 
+    CalendarTimeT::CalendarTimeT(const std::string& inString)
+    {
+        cdc_calendar_t x;
+        int rv;
+        rv = cdc_calendar_parse(&x, inString.c_str(), inString.length());
+        if (rv) { throw ErrorExceptionT(rv); }
+        calendarFromCDC(*this, x);
+    }
+
+    std::string CalendarTimeT::ToString() const
+    {
+        char buf[128];
+        cdc_calendar_t c;
+        calendarToCDC(c, *this);
+        cdc_calendar_sprintf(buf, 128, &c);
+        return std::string(buf);
+    }
+
     CalendarAuxT::CalendarAuxT() : 
         mDay(Day::Sunday), mYday(0), mDST() { }
+
 
     ZoneHandleT::ZoneHandleT(void *inZonePtr, const bool owned)
     {
@@ -390,7 +428,20 @@ namespace cdc
         intervalFromCDC(outInterval, result);
     }
 
-
+    unsigned int SystemFromString(const std::string& inSystem)
+    {
+        int rv;
+        unsigned int outsys;
+        rv = cdc_undescribe_system(&outsys, inSystem.c_str());
+        if (rv < 0) { throw ErrorExceptionT(rv); }
+        return outsys;
+    }
+    
+    std::string SystemToString(const unsigned int inSys)
+    {
+        const char *b(cdc_describe_system(inSys));
+        return std::string(b);
+    }
 
 }
 
