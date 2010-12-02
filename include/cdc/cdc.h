@@ -374,11 +374,25 @@ int cdc_calendar_sprintf(char *buf,
 			      int n,
 			      const cdc_calendar_t *date);
 
+/** Parse an interval in %lld.%lld s format */
+int cdc_interval_parse(cdc_interval_t *out,
+                       const char *buf,
+                       const int n);
+
+/** Parse a calendar time in ISO format */
+int cdc_calendar_parse(cdc_calendar_t *out,
+                       const char *buf,
+                       const int n);
+
+
 /** Return the sign of an interval */
 int cdc_interval_sgn(const cdc_interval_t *a);			      
 
 /** Describe this system as a string, returned in a static buffer */
 const char *cdc_describe_system(const int system);
+
+/** Reconstruct a system from its description, if you can */
+int cdc_undescribe_system(unsigned int *out_sys, const char *in_desc);
 
 /** Add two calendar times fieldwise */
 int cdc_simple_op(cdc_calendar_t *result,

@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define DEBUG_GTAI 0
 #define DEBUG_UTC 0
@@ -758,6 +759,22 @@ int cdc_interval_sprintf(char *buf,
                   a->ns);
 }
 
+int cdc_interval_parse(cdc_interval_t *out,
+                       const char *buf,
+                       const int n)
+{
+    int rv;
+    long long int s, ns;
+    rv = sscanf(buf, "%lld s %lld ns", &s, &ns);
+    if (rv != 2)
+    {
+        return CDC_ERR_CANNOT_CONVERT;
+    }
+    out->s = s;
+    out->ns = ns;
+    return 0;
+}
+
 int cdc_calendar_sprintf(char *buf,
 			      int n,
 			      const cdc_calendar_t *date)
@@ -772,6 +789,38 @@ int cdc_calendar_sprintf(char *buf,
 		  date->second,
 		  date->ns,
 		  cdc_describe_system(date->system));
+}
+
+int cdc_calendar_parse(cdc_calendar_t *date,
+                       const char *buf,
+                       const int n)
+{
+    int rv;
+    int where;
+    int year, month, mday, hour, minute, second;
+    long int ns;
+                                                   
+
+    rv = sscanf(buf, "%04d-%02d-%02d %02d:%02d:%02d:%09ld %n",
+                &year, &month, &mday, &hour, &minute, &second, &ns, 
+                &where);
+    // %n apparently either does or does not get reflected in the
+    // return value, depending on the whim of your C library
+    // implementation.
+    if (rv != 7 && rv != 8)
+    {
+        return CDC_ERR_CANNOT_CONVERT;
+    }
+    date->year = year;
+    date->month = month-1;
+    date->mday = mday;
+    date->hour = hour;
+    date->minute = minute;
+    date->second = second;
+    date->ns = ns;
+    // Right. Now then .. 
+    rv = cdc_undescribe_system(&date->system, &buf[where]);
+    return rv;
 }
 
 int cdc_interval_sgn(const cdc_interval_t *a)
@@ -801,7 +850,9 @@ const char *cdc_describe_system(const int sys)
       system <= (CDC_SYSTEM_UTCPLUS_BASE + 1440))
     {
       int mins = UTCPLUS_SYSTEM_TO_MINUTES(system);
-      if (mins > 0)
+
+      // We describe 0 as '+' not '-' for convention's sake.
+      if (mins >= 0)
 	{
 	  sprintf(buf, "UTC+%02d%02d%s", (mins/60), (mins%60), modifier);
 	}
@@ -836,6 +887,58 @@ const char *cdc_describe_system(const int sys)
     }
 
   return buf;
+}
+
+int cdc_undescribe_system(unsigned int *out, const char *in_sys)
+{
+    int tainted = 0;
+    int out_sys = 0;
+
+    // Find out where in_sys ends.
+    const char *sys_endp = in_sys;
+    while (*sys_endp != '\0' && 
+           !isspace(*sys_endp)) 
+    {
+        ++sys_endp;
+    }
+    if (sys_endp == in_sys) { return CDC_ERR_BAD_SYSTEM; }
+    if (sys_endp[-1] == '*')
+    {
+        // A modifier!
+        ++tainted;
+    }
+        
+    if (!strncmp(in_sys, "TAI", 3))
+    {
+        out_sys = CDC_SYSTEM_GREGORIAN_TAI;
+    }
+    else if (!strncmp(in_sys, "UTC+", 4) || !strncmp(in_sys, "UTC-", 4))
+    {
+        int rv;
+        int hrs, mins;
+        int mul = (in_sys[3] == '-' ? -1 : 1);
+        rv = sscanf(&in_sys[4], "%02d%02d", &hrs, &mins);
+
+        if (rv != 2) { return CDC_ERR_BAD_SYSTEM; }
+        out_sys =(CDC_SYSTEM_UTCPLUS_ZERO + 
+             (mul * ((hrs * 60) + mins)));
+    }
+    else if (!strncmp(in_sys, "UTC", 3))
+    {
+        out_sys = CDC_SYSTEM_UTC;
+    }
+    else if (!strncmp(in_sys, "BST", 3))
+    {
+        out_sys = CDC_SYSTEM_BST;
+    }
+    else
+    {
+        return CDC_ERR_BAD_SYSTEM;
+    }
+
+    if (tainted) { out_sys |= CDC_SYSTEM_TAINTED; }
+    (*out) = out_sys;
+    return 0;
 }
 
 

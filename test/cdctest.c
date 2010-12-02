@@ -73,6 +73,8 @@ static int cdc_test_utcplus(void);
 static int cdc_test_bst(void);
 static int cdc_test_rebased(void);
 static int cdc_test_bounce(void);
+static int cdc_test_parse(void);
+
 
 #define DO_TEST(x) { rv = (x); if (rv) { return rv; } }
 
@@ -93,6 +95,9 @@ int cdc_test_function(int argn, char *args[])
     }
   int seed = atoi(args[1]);
   printf("> Using seed = %d \n", seed);
+
+  printf("--- Test formatting and parsing .. \n");
+  DO_TEST(cdc_test_parse());
 
   printf("-- test_interval() \n");
   DO_TEST(cdc_test_interval());
@@ -121,6 +126,44 @@ int cdc_test_function(int argn, char *args[])
   return 0;
 }
 
+
+static int cdc_test_reflexivity(unsigned int sys, const char *correct_description)
+{
+    char buf[256], buf2[256];
+    int rv;
+    unsigned int test_sys;
+
+    sprintf(buf, "%s", cdc_describe_system(sys));
+
+    sprintf(buf2, "%s: description of system %d is incorrect", __func__, sys);
+    ASSERT_STRINGS_EQUAL(buf, correct_description, buf2);
+    
+    rv = cdc_undescribe_system(&test_sys, buf);
+    sprintf(buf2, "%s: cannot undescribe %s", __func__, correct_description);
+    ASSERT_INTEGERS_EQUAL(rv, 0, buf2);
+    sprintf(buf2, "%s: wrong undescription of %s (%d)", __func__, correct_description, sys);
+    ASSERT_INTEGERS_EQUAL(sys, test_sys, buf2);
+
+    return 0;
+}
+
+static int cdc_test_parse(void)
+{
+    // Test some systems .. 
+    cdc_test_reflexivity(CDC_SYSTEM_UTC, "UTC");    
+    cdc_test_reflexivity(CDC_SYSTEM_BST, "BST");    
+    cdc_test_reflexivity(CDC_SYSTEM_GREGORIAN_TAI, "TAI");    
+
+    cdc_test_reflexivity(CDC_SYSTEM_UTCPLUS_ZERO, "UTC+0000");
+    cdc_test_reflexivity(CDC_SYSTEM_UTCPLUS_ZERO - (120 + 4), 
+                         "UTC-0204");
+
+    cdc_test_reflexivity((CDC_SYSTEM_UTCPLUS_ZERO + (60 + 23)) | 
+                         CDC_SYSTEM_TAINTED,
+                         "UTC+0123*");
+
+    return 0;
+}
 
 static int cdc_test_calendar(void)
 {
