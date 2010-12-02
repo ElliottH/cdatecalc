@@ -796,12 +796,12 @@ int cdc_calendar_parse(cdc_calendar_t *date,
                        const int n)
 {
     int rv;
-    int where;
+    int where = -1;
     int year, month, mday, hour, minute, second;
     long int ns;
                                                    
 
-    rv = sscanf(buf, "%04d-%02d-%02d %02d:%02d:%02d:%09ld %n",
+    rv = sscanf(buf, "%04d-%02d-%02d %02d:%02d:%02d.%09ld %n",
                 &year, &month, &mday, &hour, &minute, &second, &ns, 
                 &where);
     // %n apparently either does or does not get reflected in the
@@ -819,6 +819,11 @@ int cdc_calendar_parse(cdc_calendar_t *date,
     date->second = second;
     date->ns = ns;
     // Right. Now then .. 
+
+    if (where < 0) 
+    {
+        return CDC_ERR_CANNOT_CONVERT;
+    }
     rv = cdc_undescribe_system(&date->system, &buf[where]);
     return rv;
 }

@@ -169,6 +169,37 @@ static int cdc_test_interval_parse(const cdc_interval_t *ival, const char *corre
     return 0;
 }
 
+static int cdc_test_calendar_parse(const cdc_calendar_t *cal, const char *correct_description)
+{
+    char buf[256], buf2[256];
+    int rv;
+    cdc_calendar_t cand;
+
+    cdc_calendar_sprintf(buf, 256, cal);
+    sprintf(buf2, "%s: description of calendar item is incorrect", __func__);
+    ASSERT_STRINGS_EQUAL(buf, correct_description, buf2);
+    
+    rv = cdc_calendar_parse(&cand, buf, 256);
+    sprintf(buf2, "%s: cannot parse %s", __func__, buf);
+    ASSERT_INTEGERS_EQUAL(rv, 0, buf2);
+
+#if 0
+    printf("cand %d / %d / %d  %d : %d : %d  - %ld  system = %ld flags = %ld\n",
+           cand.year, cand.month, 
+           cand.mday, 
+           cand.hour, cand.minute, cand.second,
+           cand.ns, 
+           (long int)cand.system,
+           (long int)cand.flags);
+#endif
+           
+    sprintf(buf2, "%s: results of parsing %s and input don't compare equal",
+            __func__, buf);
+    rv = cdc_calendar_cmp(&cand, cal);
+    ASSERT_INTEGERS_EQUAL(rv, 0, buf2);
+    return 0;
+}
+
 static int cdc_test_parse(void)
 {
     // Test some systems .. 
@@ -200,8 +231,18 @@ static int cdc_test_parse(void)
         cdc_test_interval_parse(&ia, "2329043 s -2894219 ns");
     }
     
+    {
+        const static cdc_calendar_t t1 = 
+            { 1990, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        cdc_test_calendar_parse(&t1, "1990-01-01 00:00:00.000000000 TAI");
+    }
     
-   
+    {
+        const static cdc_calendar_t t2 =
+            { 2001, 2, 23, 23, 59, 60 , -2428509, CDC_SYSTEM_BST };
+        cdc_test_calendar_parse(&t2, "2001-03-23 23:59:60.-02428509 BST");
+    }
+        
 
     return 0;
 }
