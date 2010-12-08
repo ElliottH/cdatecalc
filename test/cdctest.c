@@ -154,16 +154,19 @@ static int cdc_test_interval_parse(const cdc_interval_t *ival, const char *corre
     cdc_interval_t cand;
 
     cdc_interval_sprintf(buf, 256, ival);
-    sprintf(buf2, "%s: description of interval %ld, %ld is incorrect - %s", __func__,
-            ival->s, ival->ns, correct_description);
+    sprintf(buf2, "%s: description of interval %lld, %lld is "
+	    "incorrect - %s", __func__,
+            (long long int)ival->s,
+	    (long long int)ival->ns, correct_description);
     ASSERT_STRINGS_EQUAL(buf, correct_description, buf2);
 
     rv = cdc_interval_parse(&cand, buf, 256);
     sprintf(buf2, "%s: cannot parse %s", __func__, correct_description);
     ASSERT_INTEGERS_EQUAL(rv, 0, buf2);
 
-    sprintf(buf2, "%s: wrong parse of %s - %ld, %ld", __func__, 
-            buf, cand.s, cand.ns);
+    sprintf(buf2, "%s: wrong parse of %s - %lld, %lld", __func__, 
+            buf, 
+	    (long long int)cand.s, (long long int)cand.ns);
     rv = cdc_interval_cmp(&cand, ival);
     ASSERT_INTEGERS_EQUAL(rv, 0, buf2);
     return 0;
