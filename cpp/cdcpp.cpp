@@ -23,6 +23,9 @@
 #include <sstream>
 #include <string>
 
+#define ONE_MILLION 1000000
+#define ONE_BILLION (1000 * ONE_MILLION)
+
 using namespace cdc;
 
 namespace
@@ -108,7 +111,7 @@ namespace cdc
             default:
             {
                 std::ostringstream ss;
-                ss << "Unknown CDC error " << inError;
+                ss << "Unknown CDC error " << (int)inError;
                 return ss.str();
             }
             }
@@ -166,6 +169,12 @@ namespace cdc
         mS = x.s; mNs = x.ns;
     }
 
+    IntervalT IntervalT::FromMilliseconds(int64_t inMs)
+    {
+        return IntervalT(inMs / 1000, 
+                         (long int)((inMs % 1000) * ONE_MILLION));
+    }
+
     std::string IntervalT::ToString() const
     {
         cdc_interval_t x;
@@ -173,7 +182,7 @@ namespace cdc
         char buf[128];
         int rv;
         rv = cdc_interval_sprintf(buf, 128, &x);
-        if (rv) { throw ErrorExceptionT(rv); }
+        if (rv < 0 ) { throw ErrorExceptionT(rv); }
         return std::string(buf);
     }
 
@@ -182,6 +191,43 @@ namespace cdc
         cdc_interval_t x, y;
         intervalToCDC(x, a); intervalToCDC(y,b);
         return cdc_interval_cmp(&x,&y);
+    }
+
+    IntervalT& IntervalT::operator+=(const IntervalT& other) 
+    {
+        this->mS += other.mS;
+        this->mNs += other.mNs;
+
+        int64_t result = (this->mNs / ONE_BILLION);
+        this->mS += result;
+        this->mNs -= (ONE_BILLION * result);
+        return *this;
+    }
+
+    const IntervalT IntervalT::operator+(const IntervalT& other) const
+    {
+        IntervalT result(*this);
+        result += other;
+        return result;
+    }
+
+
+    IntervalT& IntervalT::operator-=(const IntervalT& other)
+    {
+        this->mS -= other.mS;
+        this->mNs -= other.mNs;
+
+        int64_t result = (this->mNs / ONE_BILLION);
+        this->mS += result;
+        this->mNs -= (ONE_BILLION * result);
+        return *this;
+    }
+
+    const IntervalT IntervalT::operator-(const IntervalT& other) const
+    {
+        IntervalT result(*this);
+        result -= other;
+        return result;
     }
 
     int IntervalT::Sgn() const
@@ -200,13 +246,60 @@ namespace cdc
         calendarFromCDC(*this, x);
     }
 
+    CalendarTimeT::CalendarTimeT(const IntervalT& inInterval, int inSystem) : 
+        mYear(0), mMonth(0), mMDay(0), mHour(0), mMinute(0), 
+        mSecond(0), mNs(0), mSystem(inSystem), mFlags(kFlagsAsIfNS)
+    {
+        int64_t remainS(inInterval.mS);
+
+        mNs = inInterval.mNs;
+        mMDay = (remainS / 86400);
+        remainS -= (mMDay * 86400);
+
+        mHour = (remainS / 3600);
+        remainS -= (mHour * 3600);
+        mMinute = (remainS / 60);
+        remainS -= (mMinute * 60);
+        mSecond = remainS;
+    }
+
+
     std::string CalendarTimeT::ToString() const
     {
         char buf[128];
         cdc_calendar_t c;
+        int rv;
+
         calendarToCDC(c, *this);
-        cdc_calendar_sprintf(buf, 128, &c);
+        rv = cdc_calendar_sprintf(buf, 128, &c);
+        if (rv < 0 ) { throw ErrorExceptionT(rv); }
         return std::string(buf);
+    }
+
+    int CalendarTimeT::Compare(const CalendarTimeT& a, const CalendarTimeT& b)
+    {
+        if (a.mYear < b.mYear) { return -1; }
+        if (a.mYear > b.mYear) { return 1; }
+        
+        if (a.mMonth < b.mMonth) { return -1; }
+        if (a.mMonth > b.mMonth) { return 1; }
+
+        if (a.mMDay < b.mMDay) { return  -1; }
+        if (a.mMDay > b.mMDay) { return 1; }
+
+        if (a.mHour < b.mHour) { return -1; }
+        if (a.mHour > b.mHour) { return 1; }
+
+        if (a.mMinute < b.mMinute) { return -1; }
+        if (a.mMinute > b.mMinute) { return 1; }
+
+        if (a.mSecond < b.mSecond) { return -1; }
+        if (a.mSecond > b.mSecond) { return 1; }
+        
+        if (a.mNs < b.mNs) { return -1; }
+        if (a.mNs > b.mNs) { return 1; }
+
+        return 0;
     }
 
     CalendarAuxT::CalendarAuxT() : 
@@ -300,6 +393,28 @@ namespace cdc
         
         ZoneHandleT *zh(Wrap(h));
         return std::auto_ptr<ZoneHandleT>(zh);
+    }
+
+    std::auto_ptr<ZoneHandleT> ZoneHandleT::FromSystem(int inSystem)
+    {
+
+        if (inSystem > System::kUTCPlusBase)
+        {
+            int offset = (inSystem - System::kUTCPlusBase) - (12*60);
+            if (offset < -720 || offset > 1440)
+            {
+                return UTCPlus(offset);
+            }
+        }
+
+        switch (inSystem)
+        {
+        case System::kGregorianTAI: return TAI(); 
+        case System::kUTC: return UTC();
+        case System::kBST: return BST();
+        default:
+            throw ErrorExceptionT(Error::BadSystem);
+        }
     }
 
     std::string ErrorExceptionT::ToString() const
@@ -459,6 +574,21 @@ bool operator==(const cdc::IntervalT& a, const cdc::IntervalT& b)
 bool operator<(const cdc::IntervalT& a, const cdc::IntervalT& b)
 {
     return cdc::IntervalT::Compare(a,b) < 0;
+}
+
+bool operator>(const cdc::CalendarTimeT& a, const cdc::CalendarTimeT& b)
+{
+    return cdc::CalendarTimeT::Compare(a,b) > 0;
+}
+
+bool operator==(const cdc::CalendarTimeT& a, const cdc::CalendarTimeT& b)
+{
+    return cdc::CalendarTimeT::Compare(a,b) == 0;
+}
+
+bool operator<(const cdc::CalendarTimeT& a, const cdc::CalendarTimeT& b)
+{
+    return cdc::CalendarTimeT::Compare(a,b) < 0;
 }
 
 std::ostream& operator<<(std::ostream& os, const cdc::IntervalT& ival)

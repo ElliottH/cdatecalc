@@ -980,7 +980,7 @@ int cdc_zone_raise(cdc_zone_t *zone,
   cdc_calendar_t dst_offset;
   cdc_calendar_t tmp;
   int rv;
-  cdc_zone_t *low;
+  cdc_zone_t *low = NULL;
   
   rv = zone->lower_zone(zone, &low);
   if (rv) { return rv; }
@@ -988,6 +988,9 @@ int cdc_zone_raise(cdc_zone_t *zone,
 #if DEBUG_RAISE
    printf("Raise %s to %d (low system %d)\n", dbg_pdate(src), zone->system, low->system);
 #endif
+
+   // If !low , there is no lower system.
+   if (!low) { low = zone; }
 
 
   if (src->system == low->system) 
@@ -1073,6 +1076,7 @@ int cdc_zone_lower_to(cdc_zone_t *zone,
 	 (unsigned int)zone->handle);
 #endif
 
+  (*lower) = zone; // In case we can't lower any further.
   memcpy(&current, src, sizeof(cdc_calendar_t));
   while (current.system != (unsigned int)to_system)
     {
@@ -1144,6 +1148,7 @@ int cdc_zone_lower(cdc_zone_t *zone,
   int rv;
   cdc_calendar_t offset;
 
+  (*lower) = zone; // In case we can't lower any further.
   rv = zone->lower_zone(zone,lower);
   if (rv) { return rv;  }
 

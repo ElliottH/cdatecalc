@@ -108,6 +108,8 @@ namespace cdc
 
         IntervalT();
         IntervalT(const std::string &inString);
+    IntervalT(const int64_t inS, const long int inNs) : 
+        mS(inS), mNs(inNs) { };
 
         std::string ToString() const;
 
@@ -117,6 +119,18 @@ namespace cdc
 
         /** @return < 0 if a<b, 0 if a ==b , > 0 if a > b */
         static int Compare(const IntervalT& a, const IntervalT& b);
+
+        /** Return the number of milliseconds represented by this interval */
+        int64_t GetMilliseconds() const { return (mS * 1000) + (((uint64_t)mNs)/1000000); }
+
+        /** Construct an IntervalT from a number of milliseconds */
+        static IntervalT  FromMilliseconds(int64_t inMs);
+
+        const IntervalT operator+(const IntervalT& other) const;
+        IntervalT& operator+=(const IntervalT& other);
+
+        const IntervalT operator-(const IntervalT& other) const;
+        IntervalT& operator-=(const IntervalT& other);
     };
 
     class CalendarTimeT
@@ -147,6 +161,10 @@ namespace cdc
             mHour(hh), mMinute(MM), mSecond(ss),
             mNs(ns), mSystem(inSystem), mFlags(inFlags) { };
 
+        //! Construct a calendar time from the given interval with the AsIfNS flag set.
+        CalendarTimeT(const IntervalT& inInterval, int inSystem);
+
+
         void SetTime(int h, int m, int s, long int ns = 0)
         {
             mHour = h; mMinute =m; mSecond = s; 
@@ -157,7 +175,13 @@ namespace cdc
         
         std::string ToString() const;
 
-
+        /** A very naive comparison! Will only work for normalised times in the same system,
+         *   otherwise the results are undefined.
+         *
+         *  < 0 if a < b, 0 if a == b, 1 if a > b . Takes no account of flags.
+         *
+         */
+        static int Compare(const CalendarTimeT& a, const CalendarTimeT& b);
     };
 
     class CalendarAuxT
@@ -218,6 +242,10 @@ namespace cdc
         static std::auto_ptr<ZoneHandleT> CreateRebasedTAI(ZoneHandleT *humanZone,
                                                     const CalendarTimeT& inHumanTime,
                                                     const CalendarTimeT& inMachineTime);
+
+
+        /** Get a zone handle from a system; will throw if the system is invalid or unrecognised. */
+        static std::auto_ptr<ZoneHandleT> FromSystem(int inSystem);
 
         
 
@@ -342,6 +370,11 @@ bool operator>(const cdc::IntervalT& a, const cdc::IntervalT& b);
 bool operator<(const cdc::IntervalT& a, const cdc::IntervalT& b);
 bool operator==(const cdc::IntervalT& a, const cdc::IntervalT& b);
 static inline bool operator!=(const cdc::IntervalT& a, const cdc::IntervalT& b) { return !(a==b); }
+
+bool operator>(const cdc::CalendarTimeT& a, const cdc::CalendarTimeT& b);
+bool operator<(const cdc::CalendarTimeT& a, const cdc::CalendarTimeT& b);
+bool operator==(const cdc::CalendarTimeT& a, const cdc::CalendarTimeT& b);
+static inline bool operator!=(const cdc::CalendarTimeT& a, const cdc::CalendarTimeT& b) { return !(a==b); }
 
 std::ostream& operator<<(std::ostream& os, const cdc::IntervalT& ival);
 std::ostream& operator<<(std::ostream& os, const cdc::CalendarTimeT& cal);
