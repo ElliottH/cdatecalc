@@ -87,7 +87,7 @@ namespace cdc
 {
     namespace System
     {
-        std::string ToString(const int inSystem)
+        std::string ToString(const uint32_t inSystem)
         {
             return std::string(cdc_describe_system(inSystem));
         }
@@ -323,7 +323,7 @@ namespace cdc
         mOwned = false;
     }
 
-    int ZoneHandleT::GetSystem(void) const
+    uint32_t ZoneHandleT::GetSystem(void) const
     {
         const cdc_zone_t *zh = Unwrap(this);
         return zh->system;
@@ -395,7 +395,7 @@ namespace cdc
         return std::auto_ptr<ZoneHandleT>(zh);
     }
 
-    std::auto_ptr<ZoneHandleT> ZoneHandleT::FromSystem(int inSystem)
+    std::auto_ptr<ZoneHandleT> ZoneHandleT::FromSystem(uint32_t inSystem)
     {
 
         if (inSystem > System::kUTCPlusBase)

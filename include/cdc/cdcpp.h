@@ -29,20 +29,20 @@ namespace cdc
 {
     namespace System
     {
-        static const int kInvalid = -1;
-        static const int kGregorianTAI = 0;
-        static const int kUTC = 2;
-        static const int kBST = 3;
-        static const int kOffset = 4;
-        static const int kLowest = 5;
+        static const uint32_t kInvalid = -1;
+        static const uint32_t kGregorianTAI = 0;
+        static const uint32_t kUTC = 2;
+        static const uint32_t kBST = 3;
+        static const uint32_t kOffset = 4;
+        static const uint32_t kLowest = 5;
 
         //! Base is given with a fixed (60*12) offset. 
-        static const int kUTCPlusBase = 0x1000;
-        static const int kFlagTainted = (1<<30);
+        static const uint32_t kUTCPlusBase = 0x1000;
+        static const uint32_t kFlagTainted = (1<<30);
 
-        static const int Rebased = (kFlagTainted | 6);
+        static const uint32_t Rebased = (kFlagTainted | 6);
 
-        std::string ToString(const int inSystem);
+        std::string ToString(const uint32_t inSystem);
     };
 
     namespace Error
@@ -245,11 +245,11 @@ namespace cdc
 
 
         /** Get a zone handle from a system; will throw if the system is invalid or unrecognised. */
-        static std::auto_ptr<ZoneHandleT> FromSystem(int inSystem);
+        static std::auto_ptr<ZoneHandleT> FromSystem(uint32_t inSystem);
 
         
 
-        int GetSystem(void) const;
+        uint32_t GetSystem(void) const;
 
     private:
        // Intentionally unimplemented: this object may not be copied.
