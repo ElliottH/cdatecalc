@@ -84,13 +84,16 @@
 #define CDC_SYSTEM_INVALID          -1
 
 /** TAI, Gregorian calendar */
-#define CDC_SYSTEM_GREGORIAN_TAI     0 
+#define CDC_SYSTEM_GREGORIAN_TAI     0
 
 /** UTC */
 #define CDC_SYSTEM_UTC               2
 
 /** BST */
 #define CDC_SYSTEM_BST               3
+
+/** Unknown, for when we really don't know */
+#define CDC_SYSTEM_UNKNOWN           4
 
 /** UTC plus an offset of 0 (-1200) to 1440 (+1200) */
 #define CDC_SYSTEM_UTCPLUS_BASE           0x1000

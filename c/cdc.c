@@ -566,6 +566,8 @@ int cdc_zone_new(int system,
     case CDC_SYSTEM_REBASED:
       prototype = &s_system_rebased;
       break;
+    default:
+      return CDC_ERR_NO_SUCH_SYSTEM;
     }
   if (prototype == NULL)
     {
@@ -935,6 +937,10 @@ int cdc_undescribe_system(unsigned int *out, const char *in_sys)
     else if (!strncmp(in_sys, "BST", 3))
     {
         out_sys = CDC_SYSTEM_BST;
+    }
+    else if (!strncmp(in_sys, "UNK", 3) || !strncmp(in_sys, "UNKNOWN", 7))
+    {
+        out_sys = CDC_SYSTEM_UNKNOWN;
     }
     else
     {
