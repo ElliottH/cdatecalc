@@ -19,8 +19,8 @@ CPP_OBJ_DIR=$(OBJ_DIR)/cpp
 C_OBJS := $(CDC_C_SRCS:c/%.c=$(C_OBJ_DIR)/%.o)
 CPP_OBJS := $(CDC_C_SRCS:c/%.c=$(CPP_OBJ_DIR)/%.o) $(CDC_CPP_SRCS:cpp/%.cpp=$(CPP_OBJ_DIR)/%.o)
 
-CFLAGS=-Wall -Werror --std=c99 -I$(INC) -g -fPIC -DPIC
-CXXFLAGS=-Wall -Werror -I$(INC) -g -fPIC -DPIC
+CFLAGS=-Wall -Werror --std=c99 -I$(INC) -g -O2 -fPIC -DPIC
+CXXFLAGS=-Wall -Werror -I$(INC) -g -O2 -fPIC -DPIC
 
 LDFLAGS=-L$(LIB_DIR) 
 
