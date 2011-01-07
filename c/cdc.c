@@ -1304,7 +1304,7 @@ static int system_gtai_diff(struct cdc_zone_struct *self,
     int curdays;
     int last = after->month;
     int lastday = after->mday;
-    int is_leap = is_gregorian_leap_year(after->year);
+    int is_leap = is_gregorian_leap_year(before->year);
     int curyear = before->year;
     int lastyear = after->year;
 
@@ -1315,7 +1315,7 @@ static int system_gtai_diff(struct cdc_zone_struct *self,
       {
 
 #if DEBUG_GTAI
-	printf("-> d cur = %d curday = %d \n", cur, curday);
+          printf("-> d cur = %d curday = %d [ y = %d, leap = %d ]\n", cur, curday, curyear, is_leap);
 #endif
 
 	// Advance by a day each time, until we hit 'after'.

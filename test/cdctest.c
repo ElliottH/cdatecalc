@@ -77,6 +77,7 @@ static int cdc_test_parse(void);
 
 /* Test interval - date arithmetic bugs found whilst developing RAW */
 static int cdc_test_date_arith(void);
+static int cdc_test_date_arith_2(void);
 
 
 #define DO_TEST(x) { rv = (x); if (rv) { return rv; } }
@@ -99,8 +100,8 @@ int cdc_test_function(int argn, char *args[])
   int seed = atoi(args[1]);
   printf("> Using seed = %d \n", seed);
 
-  printf("--- Test date arithmetic .. \n");
-  DO_TEST(cdc_test_date_arith());
+  printf("--- Date Arithmetic 2 \n");
+  DO_TEST(cdc_test_date_arith_2());
 
   printf("--- Test formatting and parsing .. \n");
   DO_TEST(cdc_test_parse());
@@ -128,6 +129,9 @@ int cdc_test_function(int argn, char *args[])
 
   printf(" -- test_bounce() \n");
   DO_TEST(cdc_test_bounce());
+
+  printf("--- Test date arithmetic .. \n");
+  DO_TEST(cdc_test_date_arith());
 
   
   return 0;
@@ -1337,6 +1341,320 @@ static int cdc_test_bounce(void)
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() bst");
 
   return 0;
+}
+
+static int cdc_test_date_arith_2()
+{
+    cdc_zone_t *gtai;
+    char buf[256];
+    int rv;
+
+    rv = cdc_zone_new(CDC_SYSTEM_GREGORIAN_TAI,
+                      &gtai, 0, NULL);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create gtai zone");
+    
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2009, 0, 1, 0, 0, 32, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2010, 3, 12, 8,49, 20, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "40294128 s 0 ns";
+        const char *date_later_str = "2010-04-12 08:49:20.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[0] Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "[0] Wrong interval computed");
+        
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[0] Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "[0] Interval add missed destination");
+    }
+
+
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2006, 0, 1, 0, 0, 32, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2010, 3, 12, 8,49, 20, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "134988528 s 0 ns";
+        const char *date_later_str = "2010-04-12 08:49:20.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[1] Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "[1]: Wrong interval computed");
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[1] Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "[1] Interval add missed destination");
+    }
+
+
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2002, 0, 1, 0, 0, 32, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2010, 3, 12, 8,49, 20, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "261218928 s 0 ns";
+        const char *date_later_str = "2010-04-12 08:49:20.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[2] Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "[2] Wrong interval computed");
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[2] Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "[2] Interval add missed destination");
+    }
+
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2001, 0, 1, 0, 0, 32, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2010, 3, 12, 8,49, 20, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "292754928 s 0 ns";
+        const char *date_later_str = "2010-04-12 08:49:20.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[4] Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "[4] Wrong interval computed");
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[4] Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "[4] Interval add missed destination");
+    }
+
+
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2004, 3, 1, 0, 0, 32, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2010, 3, 12, 8,49, 20, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "190284528 s 0 ns";
+        const char *date_later_str = "2010-04-12 08:49:20.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[5] Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "[5] Wrong interval computed");
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[5] Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "[5] Interval add missed destination");
+    }
+
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2004, 1, 1, 0, 0, 32, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2008, 3, 12, 8,49, 20, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "132396528 s 0 ns";
+        const char *date_later_str = "2008-04-12 08:49:20.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[5.1] Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "Test 0: Wrong interval computed");
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[5.1] Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "[5.1] Interval add missed destination");
+    }
+
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2004, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2005, 0, 1, 0 ,0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        cdc_interval_t iv_expected = { 366*86400, 0 };
+        char iv_target[256];
+        const char *date_later_str = "2005-01-01 00:00:00.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+        
+        printf("----\n");
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[5.111] Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        cdc_interval_sprintf(iv_target,256, &iv_expected);
+        printf("Iv = %s\n", buf);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "Test 0: Wrong interval computed");
+        (void)iv_target;
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[5.111] Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "[5.111] Interval add missed destination");
+    }
+
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2004, 1, 1, 0, 0, 32, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2009, 0, 1, 8,49, 20, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "155206128 s 0 ns";
+        const char *date_later_str = "2009-01-01 08:49:20.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[5.11] Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "Test 0: Wrong interval computed");
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[5.11] Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "[5.11] Interval add missed destination");
+    }
+
+
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2004, 1, 1, 0, 0, 32, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2009, 3, 12, 8,49, 20, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "163932528 s 0 ns";
+        const char *date_later_str = "2009-04-12 08:49:20.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[5.2] Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "Test 0: Wrong interval computed");
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[5.2] Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "[5.2] Interval add missed destination");
+    }
+
+
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2004, 1, 1, 0, 0, 32, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2010, 3, 12, 8,49, 20, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "195468528 s 0 ns";
+        const char *date_later_str = "2010-04-12 08:49:20.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[6] Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "Test 0: Wrong interval computed");
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[6] Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "[6] Interval add missed destination");
+    }
+
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2004, 0, 1, 0, 0, 32, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2010, 3, 12, 8,49, 20, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "198146928 s 0 ns";
+        const char *date_later_str = "2010-04-12 08:49:20.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[10] Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+         ASSERT_STRINGS_EQUAL(buf, iv_target, "[10] Wrong interval computed");
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[10] Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "[10] Interval add missed destination");
+    }
+
+
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2000, 0, 1, 0, 0, 32, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2010, 3, 12, 8,49, 20, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "";
+        const char *date_later_str = "2010-04-12 08:49:20.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "Cannot compute initial difference");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        //ASSERT_STRINGS_EQUAL(buf, iv_target, "Test 0: Wrong interval computed");
+        (void)iv_target;
+
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 128, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "Interval add missed destination");
+    }
+    return 0;
 }
 
 static int cdc_test_date_arith()
