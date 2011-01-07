@@ -75,6 +75,9 @@ static int cdc_test_rebased(void);
 static int cdc_test_bounce(void);
 static int cdc_test_parse(void);
 
+/* Test interval - date arithmetic bugs found whilst developing RAW */
+static int cdc_test_date_arith(void);
+
 
 #define DO_TEST(x) { rv = (x); if (rv) { return rv; } }
 
@@ -95,6 +98,9 @@ int cdc_test_function(int argn, char *args[])
     }
   int seed = atoi(args[1]);
   printf("> Using seed = %d \n", seed);
+
+  printf("--- Test date arithmetic .. \n");
+  DO_TEST(cdc_test_date_arith());
 
   printf("--- Test formatting and parsing .. \n");
   DO_TEST(cdc_test_parse());
@@ -122,6 +128,7 @@ int cdc_test_function(int argn, char *args[])
 
   printf(" -- test_bounce() \n");
   DO_TEST(cdc_test_bounce());
+
   
   return 0;
 }
@@ -1324,11 +1331,6 @@ static int cdc_test_bounce(void)
 
   }
 
-
-
-  
-
-
   rv = cdc_zone_dispose(&offset);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot dispose() offset");
   rv = cdc_zone_dispose(&bst);
@@ -1337,11 +1339,276 @@ static int cdc_test_bounce(void)
   return 0;
 }
 
+static int cdc_test_date_arith()
+{
+    cdc_zone_t *gtai;
+    char buf[256];
+    int rv;
+    
+    rv = cdc_zone_new(CDC_SYSTEM_GREGORIAN_TAI,
+                      &gtai, 0, NULL);
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create gtai zone");
+
+
+    // Check in a leap year.
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2004, 1, 28, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2004, 2, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "172800 s 0 ns";
+        const char *date_later_str = "2004-03-01 00:00:00.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+        
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "Cannot compute zone");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "Test 0: Wrong interval computed.");
+
+        // Now add it back ..
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 256, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "Test 0 : Wrong target computed");
+    }
+
+
+    // Check in a non-leap year.
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2006, 1, 28, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2006, 2, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *iv_target = "86400 s 0 ns";
+        const char *date_later_str = "2006-03-01 00:00:00.000000000 TAI";
+        cdc_interval_t iv;
+        cdc_calendar_t out;
+        
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "Cannot compute zone");
+        
+        cdc_interval_sprintf(buf, 256, &iv);
+        ASSERT_STRINGS_EQUAL(buf, iv_target, "Test 1: Wrong interval computed.");
+
+        // Now add it back ..
+        rv = cdc_zone_add(gtai, &out, 
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add interval back (0)");
+        
+        cdc_calendar_sprintf(buf, 256, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "Test 1 : Wrong target computed");
+    }
+
+    // Adding 29 * 86400 to 2006 Jan 31 should give us March 1
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2006, 0, 31, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *date_later_str = "2006-03-01 00:00:00.000000000 TAI";
+        cdc_interval_t iv = { 86400 * 29, 0 };
+        cdc_calendar_t out;
+
+        rv = cdc_zone_add(gtai, &out,
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add interval to date [2]");
+        
+        cdc_calendar_sprintf(buf, 256, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "Test 2 : Wrong target computed");
+    }
+
+    // But adding the same to 2004 should give us Feb 29
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2004, 0, 31, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *date_later_str = "2004-02-29 00:00:00.000000000 TAI";
+        cdc_interval_t iv = { 86400 * 29, 0 };
+        cdc_calendar_t out;
+
+        rv = cdc_zone_add(gtai, &out,
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add interval to date [2]");
+        
+        cdc_calendar_sprintf(buf, 256, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "Test 3 : Wrong target computed");
+    }
+
+    // So ask it the other way around: how many seconds in Feb 2004? (leap year)
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2004, 0, 31, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2004, 2, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_interval_t tgt_iv = { 86400 * 30, 0 };
+        cdc_interval_t iv;
+        char rbuf[256];
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[3.1] Cannot compute interval");
+
+        cdc_interval_sprintf(buf, 256, &iv);
+        cdc_interval_sprintf(rbuf, 256, &tgt_iv);
+
+        ASSERT_STRINGS_EQUAL(buf, rbuf,
+                             "Test 3.1: Got the wrong interval");
+    }
+
+    // So ask it the other way around: how about Feb 2006? (not a leap year)
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2006, 0, 31, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2006, 2, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_interval_t tgt_iv = { 86400 * 29, 0 };
+        cdc_interval_t iv;
+        char rbuf[256];
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[3.2] Cannot compute interval");
+
+        cdc_interval_sprintf(buf, 256, &iv);
+        cdc_interval_sprintf(rbuf, 256, &tgt_iv);
+
+        ASSERT_STRINGS_EQUAL(buf, rbuf,
+                             "Test 3.2: Got the wrong interval");
+    }
+
+    // All right. How many seconds in 2004 ?
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2003, 11, 31, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2005, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        // 366 days in the year, plus 31st Dec 2003.
+        static cdc_interval_t tgt_iv = { 86400 * (366+1), 0 };
+        cdc_interval_t iv;
+        char rbuf[256];
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[3.3] Cannot compute interval");
+
+        cdc_interval_sprintf(buf, 256, &iv);
+        cdc_interval_sprintf(rbuf, 256, &tgt_iv);
+
+        ASSERT_STRINGS_EQUAL(buf, rbuf,
+                             "Test 3.3: Got the wrong interval");
+    }
+
+    // All right. How many seconds in 2006 ?
+    {
+        static cdc_calendar_t date_earlier = 
+            { 2005, 11, 31, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2007, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        // 365 days in the year, plus 31st Dec 2005.
+        static cdc_interval_t tgt_iv = { 86400 * (365+1), 0 };
+        cdc_interval_t iv;
+        char rbuf[256];
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[3.4] Cannot compute interval");
+
+        cdc_interval_sprintf(buf, 256, &iv);
+        cdc_interval_sprintf(rbuf, 256, &tgt_iv);
+
+        ASSERT_STRINGS_EQUAL(buf, rbuf,
+                             "Test 3.4: Got the wrong interval");
+    }
+    
+
+    // Between 2010 and 2001 there are 9 years. 2004, 2008 are leap years so have
+    // two extra days.
+    //
+    // So there should be 365 * 7 + (366 * 2) days.
+    {
+        static cdc_calendar_t date_earlier =
+            { 2001, 0,1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        const char *date_later_str = "2010-01-01 00:00:00.000000000 TAI";
+        cdc_interval_t iv = { ((365 * 7) + (366 * 2))*86400, 0 };
+        cdc_calendar_t out;
+
+        rv = cdc_zone_add(gtai, &out,
+                          &date_earlier,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[4] Cannot add interval to date");
+        
+        cdc_calendar_sprintf(buf, 256, &out);
+        ASSERT_STRINGS_EQUAL(buf, date_later_str, "Test 4 : Wrong target computed");
+    }
+
+    // .. and if you subtract 2001 from 2010, you should get what you just
+    // verified that the interval was
+    {
+        static cdc_calendar_t date_earlier =
+            { 2001, 0,1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_later = 
+            { 2010, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        cdc_interval_t iv;
+        cdc_interval_t tgt_iv = { 86400 * ((365 * 7) + (366 * 2)) , 0 };
+        char tgt_rep[256];
+
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[5] Cannot compute interval.");
+
+        cdc_interval_sprintf(buf, 256, &iv);
+        cdc_interval_sprintf(tgt_rep, 256, &tgt_iv);
+
+        ASSERT_STRINGS_EQUAL(buf, tgt_rep,
+                             "Test 5 : Got the wrong interval ");
+    }
+
+
+
+    {
+        static cdc_calendar_t date_later = 
+            { 2010, 0, 1, 1, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        static cdc_calendar_t date_earlier = 
+            {  2001, 0, 1,0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        
+        static cdc_calendar_t date_to_add_to = 
+            { 2001, 1, 2, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        //static cdc_calendar_t  tgt = 
+        //   { 2010, 1, 2, 1, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        
+        static const char *tgt_rep = 
+            "2010-02-02 01:00:00.000000000 TAI";
+        
+        //static cdc_calendar_t date_added_to = 
+        //   { 2001, 1, 2, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
+        
+        cdc_calendar_t out;
+        cdc_interval_t iv;
+        
+        rv = cdc_diff(gtai, &iv, &date_earlier, &date_later);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[20] Cannot compute interval");
+        
+        rv = cdc_zone_add(gtai, &out,
+                          &date_to_add_to,
+                          &iv);
+        ASSERT_INTEGERS_EQUAL(0, rv, "[20] Cannot add dates");
+        
+
+        cdc_calendar_sprintf(buf, 256, &out);
+        printf("Out: %s \n", buf);
+        
+        ASSERT_STRINGS_EQUAL(buf, tgt_rep,
+                             "[20] Wrong representation for target date");
+    }
+        
+    return 0;
+}
+
 
 static int faili(const cdc_interval_t *a,
-		  const cdc_interval_t *b,
-		  const char *leg1,
-		  const char *leg2,
+                 const cdc_interval_t *b,
+                 const char *leg1,
+                 const char *leg2,
 		  const char *file,
 		  const int line,
 		  const char *func)

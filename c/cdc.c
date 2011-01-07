@@ -1345,6 +1345,7 @@ static int system_gtai_diff(struct cdc_zone_struct *self,
 	    {
 	      cur = 0;
 	      ++curyear;
+              is_leap = is_gregorian_leap_year(curyear);
 	    }
 	}	      
       }
