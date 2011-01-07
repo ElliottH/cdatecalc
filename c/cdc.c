@@ -545,7 +545,6 @@ int cdc_zone_new(int system,
   cdc_zone_t *prototype = NULL;
   int rv;
 
-
   if (system >= CDC_SYSTEM_UTCPLUS_BASE && 
       system <= (CDC_SYSTEM_UTCPLUS_BASE + 1440))
     {
@@ -567,7 +566,8 @@ int cdc_zone_new(int system,
       prototype = &s_system_rebased;
       break;
     default:
-      return CDC_ERR_NO_SUCH_SYSTEM;
+        // Intentional dropthrough ..
+        break;
     }
   if (prototype == NULL)
     {
