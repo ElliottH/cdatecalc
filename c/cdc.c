@@ -1275,6 +1275,12 @@ static int system_gtai_diff(struct cdc_zone_struct *self,
       return CDC_ERR_NOT_MY_SYSTEM;
     }
 
+  if (before->month < 0 || before->month > 12)
+  {
+      return CDC_ERR_INVALID_ARGUMENT;
+  }
+      
+
   if (cdc_calendar_cmp(before, after) > 0)
     {
       int rv;
