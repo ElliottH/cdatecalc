@@ -53,6 +53,8 @@
 #define SWAP(x,y) { __typeof(x) __tmp; __tmp = (x); (x) = (y); (y) = __tmp; }
 
 #if DEBUG_ANY
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 static const char *dbg_pdate(const cdc_calendar_t *cal);
 #endif
 
@@ -1300,7 +1302,7 @@ static int system_gtai_diff(struct cdc_zone_struct *self,
 
 
 #if DEBUG_GTAI
-  printf("init: s = %lld ns = %ld \n", 
+  printf("init: s = %"PRIu64" ns = %ld \n", 
 	 ival.s, ival.ns);
 #endif
 
@@ -1358,7 +1360,7 @@ static int system_gtai_diff(struct cdc_zone_struct *self,
   }
 
 #if DEBUG_GTAI
-  printf("ival.s = %lld\n", ival.s);
+  printf("ival.s = %"PRIu64"\n", ival.s);
 #endif
 
   {
