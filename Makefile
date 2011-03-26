@@ -24,7 +24,8 @@ CXXFLAGS=-Wall -Werror -I$(INC) -g -O2 -fPIC -DPIC
 
 LDFLAGS=-L$(LIB_DIR) 
 
-all: dirs $(BIN_DIR)/cdctest $(LIB_DIR)/libcdc.so $(LIB_DIR)/libcdcpp.so $(BIN_DIR)/cdcpptest
+all: dirs $(BIN_DIR)/cdctest $(LIB_DIR)/libcdc.so $(LIB_DIR)/libcdcpp.so $(BIN_DIR)/cdcpptest \
+	$(LIB_DIR)/libcdctest.so
 
 $(BIN_DIR)/cdctest: $(LIB_DIR)/libcdc.so $(C_OBJ_DIR)/cdctest.o
 	$(CC) -o $@ $(CFLAGS) $(C_OBJ_DIR)/cdctest.o $(LDFLAGS) -lcdc
@@ -56,6 +57,10 @@ $(LIB_DIR)/libcdc.so: $(C_OBJS)
 
 $(LIB_DIR)/libcdcpp.so: $(CPP_OBJS)
 	$(CC) -shared -o $@ $(LDFLAGS) $(CPP_OBJS)
+
+# Build a CDCTest library so we can invoke CDC tests from our own test programs.
+$(LIB_DIR)/libcdctest.so: $(C_OBJ_DIR)/cdctest.o
+	$(CC) -shared -o $@ $(CFLAGS) test/cdctest.c $(LDFLAGS)
 
 
 $(CDC_C_SRCS) test/cdctest.c: $(C_HDRS)

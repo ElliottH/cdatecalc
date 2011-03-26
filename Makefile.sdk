@@ -1,0 +1,18 @@
+# Makefile for cdc.
+#
+# Mainly just a chain down to the 'real' Makefile, but we set some variables appropriately.
+
+# DESTDIR is set by the makefile one up from us.
+
+all:
+	$(MAKE) -f Makefile
+
+install:
+	$(MAKE) -f Makefile
+
+clean:
+	$(MAKE) -f Makefile clean
+
+# That's all, folks.
+
+# End file.

@@ -12,6 +12,14 @@ install:
 	cp -r $(MUDDLE_SRC)/include/cdc $(MUDDLE_OBJ_INCLUDE)
 	-mkdir -p $(MUDDLE_INSTALL)/lib
 	cp $(MUDDLE_OBJ_LIB)/* $(MUDDLE_INSTALL)/lib
+ifeq ($(BUILD_SDK),y)
+# SDK builds include header files and source.
+	-mkdir -p $(MUDDLE_INSTALL)/include
+	$(MUDDLE) copywithout $(MUDDLE_SRC)/include/cdc $(MUDDLE_INSTALL)/include/cdc .git
+	-mkdir -p $(MUDDLE_INSTALL)/src/cdc
+	$(MUDDLE) copywithout $(MUDDLE_SRC) $(MUDDLE_INSTALL)/src/cdc .git
+	rm -f $(MUDDLE_INSTALL)/src/cdc/Makefile.muddle
+endif
 
 config:
 	-mkdir -p $(MUDDLE_OBJ_OBJ)
