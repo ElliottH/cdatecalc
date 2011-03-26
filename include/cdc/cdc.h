@@ -22,6 +22,10 @@
 #ifndef CDC_H_INCLUDED
 #define CDC_H_INCLUDED
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /** @file
  *
  * This is cdc ; a very simple C library of time calculation functions
@@ -548,6 +552,10 @@ int cdc_bst_new(cdc_zone_t **ozone);
 int cdc_rebased_new(cdc_zone_t **ozone, 
 			 const cdc_calendar_t *offset,
 			 cdc_zone_t *based_on);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
 
