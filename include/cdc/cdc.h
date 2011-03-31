@@ -96,9 +96,6 @@ extern "C" {
 /** BST */
 #define CDC_SYSTEM_BST               3
 
-/** Unknown, for when we really don't know */
-#define CDC_SYSTEM_UNKNOWN           4
-
 /** UTC plus an offset of 0 (-1200) to 1440 (+1200) */
 #define CDC_SYSTEM_UTCPLUS_BASE           0x1000
 #define CDC_SYSTEM_UTCPLUS_ZERO          (CDC_SYSTEM_UTCPLUS_BASE + (60*12))
@@ -131,6 +128,9 @@ extern "C" {
  *  for this model.
  */
 #define CDC_SYSTEM_REBASED           (CDC_SYSTEM_TAINTED | 6)
+
+/** Unknown, for when we really don't know */
+#define CDC_SYSTEM_UNKNOWN           7
 
 
 
