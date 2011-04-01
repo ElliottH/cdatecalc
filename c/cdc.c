@@ -33,6 +33,9 @@
 #include <string.h>
 #include <ctype.h>
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #define DEBUG_GTAI 0
 #define DEBUG_UTC 0
 #define DEBUG_UTCPLUS 0
@@ -53,8 +56,6 @@
 #define SWAP(x,y) { __typeof(x) __tmp; __tmp = (x); (x) = (y); (y) = __tmp; }
 
 #if DEBUG_ANY
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
 static const char *dbg_pdate(const cdc_calendar_t *cal);
 #endif
 
@@ -757,10 +758,7 @@ int cdc_interval_sprintf(char *buf,
 			      int n,
 			      const cdc_interval_t *a)
 {
-  return snprintf(buf, n, 
-		  "%lld s %ld ns",
-		  (long long int)a->s, 
-                  a->ns);
+  return snprintf(buf, n, "%"PRId64" s %ld ns", a->s, a->ns);
 }
 
 int cdc_interval_parse(cdc_interval_t *out,
