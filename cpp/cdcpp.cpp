@@ -356,11 +356,11 @@ namespace cdc
         return std::auto_ptr<ZoneHandleT>(Wrap(h));
     }
 
-    std::auto_ptr<ZoneHandleT> ZoneHandleT::BST()
+    std::auto_ptr<ZoneHandleT> ZoneHandleT::UKCT()
     {
         cdc_zone_t *h(NULL);
         int rv;
-        rv = cdc_bst_new(&h);
+        rv = cdc_ukct_new(&h);
         if (rv) { throw ErrorExceptionT(rv); }
         return std::auto_ptr<ZoneHandleT>(Wrap(h));
     }
@@ -411,7 +411,7 @@ namespace cdc
         {
         case System::kGregorianTAI: return TAI(); 
         case System::kUTC: return UTC();
-        case System::kBST: return BST();
+        case System::kUKCT: return UKCT();
         default:
             throw ErrorExceptionT(Error::BadSystem);
         }

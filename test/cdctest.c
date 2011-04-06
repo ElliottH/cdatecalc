@@ -218,7 +218,7 @@ static int cdc_test_parse(void)
 {
     // Test some systems .. 
     cdc_test_reflexivity(CDC_SYSTEM_UTC, "UTC");    
-    cdc_test_reflexivity(CDC_SYSTEM_BST, "BST");    
+    cdc_test_reflexivity(CDC_SYSTEM_UKCT, "UK");    
     cdc_test_reflexivity(CDC_SYSTEM_GREGORIAN_TAI, "TAI");    
 
     cdc_test_reflexivity(CDC_SYSTEM_UTCPLUS_ZERO, "UTC+0000");
@@ -253,8 +253,8 @@ static int cdc_test_parse(void)
     
     {
         const static cdc_calendar_t t2 =
-            { 2001, 2, 23, 23, 59, 60 , -2428509, CDC_SYSTEM_BST };
-        cdc_test_calendar_parse(&t2, "2001-03-23 23:59:60.-02428509 BST");
+            { 2001, 2, 23, 23, 59, 60 , -2428509, CDC_SYSTEM_UKCT };
+        cdc_test_calendar_parse(&t2, "2001-03-23 23:59:60.-02428509 UK");
     }
         
 
@@ -982,27 +982,27 @@ static int cdc_test_utcplus(void)
 static int cdc_test_bst(void)
 {
   cdc_zone_t *bst;
-  static const char *check_bst_desc = "BST";
+  static const char *check_bst_desc = "UK";
   const char *bst_desc;
   int rv;
   cdc_calendar_t tgt;
   char buf[128];
 
-  rv = cdc_bst_new(&bst);
+  rv = cdc_ukct_new(&bst);
   ASSERT_INTEGERS_EQUAL(0, rv, "Cannot create bst.");
 
-  bst_desc = cdc_describe_system(CDC_SYSTEM_BST);
-  ASSERT_STRINGS_EQUAL(check_bst_desc, bst_desc, "BST descriptions don't match");
+  bst_desc = cdc_describe_system(CDC_SYSTEM_UKCT);
+  ASSERT_STRINGS_EQUAL(check_bst_desc, bst_desc, "UKCT descriptions don't match");
   
   // 1 Jan 1980 is basically the same as it always was.
   {
     static cdc_calendar_t a_value = 
       { 1980, CDC_JANUARY, 1, 01, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
     // Remember the UTC - TAI correction .. 
-    static const char *result = "1980-01-01 00:59:41.000000000 BST";
+    static const char *result = "1980-01-01 00:59:41.000000000 UK";
 
     rv = cdc_zone_raise(bst, &tgt, &a_value);
-    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise TAI to BST [0]");
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise TAI to UKCT [0]");
     
     cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [0]");
@@ -1012,10 +1012,10 @@ static int cdc_test_bst(void)
     static cdc_calendar_t a_value = 
       { 1980, CDC_JANUARY, 1, 01, 0, 0, 0, CDC_SYSTEM_UTC };
     // Remember the UTC - TAI correction .. 
-    static const char *result = "1980-01-01 01:00:00.000000000 BST";
+    static const char *result = "1980-01-01 01:00:00.000000000 UK";
 
     rv = cdc_zone_raise(bst, &tgt, &a_value);
-    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [1]");
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to UKCT [1]");
     
     cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [1]");
@@ -1027,10 +1027,10 @@ static int cdc_test_bst(void)
   {
     static cdc_calendar_t a_value = 
       { 2010, CDC_MARCH, 28, 13, 0, 0, 0, CDC_SYSTEM_UTC };
-    static const char *result = "2010-03-28 14:00:00.000000000 BST";
+    static const char *result = "2010-03-28 14:00:00.000000000 UK";
 
     rv = cdc_zone_raise(bst, &tgt, &a_value);
-    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [2]");
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to UKCT [2]");
     
     cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [2]");
@@ -1042,10 +1042,10 @@ static int cdc_test_bst(void)
   {
     static cdc_calendar_t a_value = 
       { 2010, CDC_MARCH, 28, 00, 59, 59, 0, CDC_SYSTEM_UTC };
-    static const char *result = "2010-03-28 00:59:59.000000000 BST";
+    static const char *result = "2010-03-28 00:59:59.000000000 UK";
 
     rv = cdc_zone_raise(bst, &tgt, &a_value);
-    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [2]");
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to UKCT [2]");
     
     cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [2]");
@@ -1054,23 +1054,23 @@ static int cdc_test_bst(void)
   // 0200 BST is 0100 UTC.
   {
     static cdc_calendar_t a_value = 
-      { 2010, CDC_MARCH, 28, 02, 00, 00, 0, CDC_SYSTEM_BST };
+      { 2010, CDC_MARCH, 28, 02, 00, 00, 0, CDC_SYSTEM_UKCT };
     static const char *result = "2010-03-28 01:00:00.000000000 UTC";
     cdc_zone_t *z;
 
     rv = cdc_zone_lower(bst, &tgt, &z, &a_value);
-    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot lower BST to UTC [3]");
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot lower UKCT to UTC [3]");
     
     cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Lower result compare failed [3]");
   }
 
-  // However, there is 1s of elapsed time between 00:59:59 BST and 02:00:00 BST.
+  // However, there is 1s of elapsed time between 00:59:59 GMT and 02:00:00 BST.
   {
     static cdc_calendar_t a_value = 
-      { 2010, CDC_MARCH, 28, 00, 59, 59, 0, CDC_SYSTEM_BST };
+      { 2010, CDC_MARCH, 28, 00, 59, 59, 0, CDC_SYSTEM_UKCT };
     static cdc_calendar_t b_value = 
-      { 2010, CDC_MARCH, 28, 02, 0, 0, 0, CDC_SYSTEM_BST };
+      { 2010, CDC_MARCH, 28, 02, 0, 0, 0, CDC_SYSTEM_UKCT };
     cdc_interval_t iv;
     static const char *result = "1 s 0 ns";
 
@@ -1086,10 +1086,10 @@ static int cdc_test_bst(void)
     // The last Sunday in October 2020 is 25th.
     static cdc_calendar_t a_value = 
       { 2020, CDC_OCTOBER, 26, 00, 59, 59, 0, CDC_SYSTEM_UTC };
-    static const char *result = "2020-10-26 00:59:59.000000000 BST";
+    static const char *result = "2020-10-26 00:59:59.000000000 UK";
 
     rv = cdc_zone_raise(bst, &tgt, &a_value);
-    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [5]");
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to UKCT [5]");
     
     cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [5]");
@@ -1099,10 +1099,10 @@ static int cdc_test_bst(void)
     // The last Sunday in October 2020 is 25th.
     static cdc_calendar_t a_value = 
       { 2020, CDC_OCTOBER, 24, 00, 59, 59, 0, CDC_SYSTEM_UTC };
-    static const char *result = "2020-10-24 01:59:59.000000000 BST";
+    static const char *result = "2020-10-24 01:59:59.000000000 UK";
 
     rv = cdc_zone_raise(bst, &tgt, &a_value);
-    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to BST [5]");
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot raise UTC to UKCT [5]");
     
     cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Raise result compare failed [5]");
@@ -1111,13 +1111,13 @@ static int cdc_test_bst(void)
   // Add 1s to a totally uncontroversial time.
   {
     static cdc_calendar_t a_value = 
-      { 1983, CDC_DECEMBER, 1, 0, 59, 59, 0, CDC_SYSTEM_BST };
+      { 1983, CDC_DECEMBER, 1, 0, 59, 59, 0, CDC_SYSTEM_UKCT };
     static cdc_calendar_t one_second = 
       { 0, 0, 0, 0, 0, 1, 0, CDC_SYSTEM_OFFSET };
-    static const char *result = "1983-12-01 01:00:00.000000000 BST";
+    static const char *result = "1983-12-01 01:00:00.000000000 UK";
     
     rv = cdc_op(bst, &tgt, &a_value, &one_second, CDC_OP_COMPLEX_ADD);
-    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add 1s to BST time [6]");
+    ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add 1s to UKCT time [6]");
 
     cdc_calendar_sprintf(buf, 128, &tgt);
     ASSERT_STRINGS_EQUAL(buf, result, "Add result compare failed [6]");
@@ -1126,10 +1126,10 @@ static int cdc_test_bst(void)
   // .. and whilst BST is on.
   {
     static cdc_calendar_t a_value = 
-      { 1983, CDC_APRIL, 1, 23, 59, 59, 0, CDC_SYSTEM_BST };
+      { 1983, CDC_APRIL, 1, 23, 59, 59, 0, CDC_SYSTEM_UKCT };
     static cdc_calendar_t one_second = 
       { 0, 0, 0, 0, 0, 1, 0, CDC_SYSTEM_OFFSET };
-    static const char *result = "1983-04-02 00:00:00.000000000 BST";
+    static const char *result = "1983-04-02 00:00:00.000000000 UK";
     
     rv = cdc_op(bst, &tgt, &a_value, &one_second, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add 1s to BST time [7]");
@@ -1144,10 +1144,10 @@ static int cdc_test_bst(void)
   // 1 July.
   {
     static cdc_calendar_t a_value = 
-      { 1983, CDC_JULY, 1, 0, 59, 59, 0, CDC_SYSTEM_BST };
+      { 1983, CDC_JULY, 1, 0, 59, 59, 0, CDC_SYSTEM_UKCT };
     static cdc_calendar_t one_second = 
       { 0, 0, 0, 0, 0, 1, 0, CDC_SYSTEM_OFFSET };
-    static const char *result = "1983-07-01 00:59:60.000000000 BST";
+    static const char *result = "1983-07-01 00:59:60.000000000 UK";
     
     rv = cdc_op(bst, &tgt, &a_value, &one_second, CDC_OP_COMPLEX_ADD);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot add 1s to BST time [7]");
@@ -1158,7 +1158,7 @@ static int cdc_test_bst(void)
 
   {
     static cdc_calendar_t a_value =
-      { 1984, CDC_JULY, 1, 02, 00, 00, 0, CDC_SYSTEM_BST };
+      { 1984, CDC_JULY, 1, 02, 00, 00, 0, CDC_SYSTEM_UKCT };
     static const char *result = "1984-07-01 01:00:22.000000000 TAI";
     cdc_zone_t *z;
 
@@ -1247,12 +1247,12 @@ static int cdc_test_bounce(void)
   {
     // 1 hr
     cdc_calendar_t human = 
-      { 2010, CDC_JUNE, 4, 12, 23, 04, 0, CDC_SYSTEM_BST };
+      { 2010, CDC_JUNE, 4, 12, 23, 04, 0, CDC_SYSTEM_UKCT };
     cdc_calendar_t computer =
       { 2010, CDC_JUNE, 4, 12, 23, 04, 0, CDC_SYSTEM_GREGORIAN_TAI };
     cdc_calendar_t tgt;
     
-    rv = cdc_bst_new(&bst);
+    rv = cdc_ukct_new(&bst);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot construct bst");
     
     rv = cdc_rebased_tai(&offset, bst, &human, &computer);
@@ -1260,7 +1260,7 @@ static int cdc_test_bounce(void)
     
     {
       static cdc_calendar_t a = 
-	{ 2010, CDC_NOVEMBER, 5, 15, 00, 00, 0, CDC_SYSTEM_BST };
+	{ 2010, CDC_NOVEMBER, 5, 15, 00, 00, 0, CDC_SYSTEM_UKCT };
       // Actually an hour ahead because BST has ticked back an hour at the end
       // of BST, but the computer clock has just carried on ticking.
       static const char *result = "2010-11-05 16:00:00.000000000 REBASED*";
@@ -1276,12 +1276,12 @@ static int cdc_test_bounce(void)
   {
     // 1yr 5 months, 3 days, 12 hours, 23 minutes, 04 s
     cdc_calendar_t human = 
-      { 2010, CDC_JUNE, 4, 12, 23, 04, 0, CDC_SYSTEM_BST };
+      { 2010, CDC_JUNE, 4, 12, 23, 04, 0, CDC_SYSTEM_UKCT };
     cdc_calendar_t computer =
       { 2009, CDC_JANUARY, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
     cdc_calendar_t tgt;
     
-    rv = cdc_bst_new(&bst);
+    rv = cdc_ukct_new(&bst);
     ASSERT_INTEGERS_EQUAL(0, rv, "Cannot construct bst");
     
     rv = cdc_rebased_tai(&offset, bst, &human, &computer);
@@ -1292,7 +1292,7 @@ static int cdc_test_bounce(void)
       // time, so the apparent difference is what you see above, and
       // we should expect 2009 - 01 - 02 02:36:56.
       static cdc_calendar_t a = 
-	{ 2010, CDC_JUNE, 5, 15, 00, 00, 0, CDC_SYSTEM_BST };
+	{ 2010, CDC_JUNE, 5, 15, 00, 00, 0, CDC_SYSTEM_UKCT };
       static const char *result = "2009-01-02 02:36:56.000000000 REBASED*";
       
       rv = cdc_bounce(bst, offset, &tgt, &a);
@@ -1310,7 +1310,7 @@ static int cdc_test_bounce(void)
       // less than between Jun and Nov, so in fact we get 2011-11-07
       static cdc_calendar_t a = 
 	{ 2010, CDC_JUNE, 5, 15, 00, 00, 0, CDC_SYSTEM_REBASED };
-      static const char *result = "2011-11-07 02:23:04.000000000 BST";
+      static const char *result = "2011-11-07 02:23:04.000000000 UK";
 
       rv = cdc_bounce(offset, bst, &tgt, &a);
       ASSERT_INTEGERS_EQUAL(0, rv, "Cannot bounce time [1]");
@@ -1324,7 +1324,7 @@ static int cdc_test_bounce(void)
       // .. and now ahead by an hour because we've landed in BST.
       static cdc_calendar_t a = 
 	{ 2010, CDC_OCTOBER, 5, 15, 00, 00, 0, CDC_SYSTEM_REBASED };
-      static const char *result = "2012-03-08 03:23:04.000000000 BST";
+      static const char *result = "2012-03-08 03:23:04.000000000 UK";
 
       rv = cdc_bounce(offset, bst, &tgt, &a);
       ASSERT_INTEGERS_EQUAL(0, rv, "Cannot bounce time [2]");

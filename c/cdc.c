@@ -381,42 +381,42 @@ static cdc_zone_t s_system_utcplus =
   };
 
 
-static int bst_init(struct cdc_zone_struct *self,
+static int ukct_init(struct cdc_zone_struct *self,
 		    int iarg, void *parg);
 
-static int system_bst_offset(struct cdc_zone_struct *self,
+static int system_ukct_offset(struct cdc_zone_struct *self,
 			     cdc_calendar_t *offset,
 			     const cdc_calendar_t *src);
 
-static int system_bst_op(struct cdc_zone_struct *self,
+static int system_ukct_op(struct cdc_zone_struct *self,
 			 cdc_calendar_t *dest,
 			 const cdc_calendar_t *src,
 			 const cdc_calendar_t *offset,
 			 int op);
 
-static int system_bst_aux(struct cdc_zone_struct *self,
+static int system_ukct_aux(struct cdc_zone_struct *self,
 			  const cdc_calendar_t *calc,
 			  cdc_calendar_aux_t *aux);
 
-static int system_bst_epoch(struct cdc_zone_struct *self,
+static int system_ukct_epoch(struct cdc_zone_struct *self,
 			    cdc_calendar_t *aux);
 
-static int system_bst_lower_zone(struct cdc_zone_struct *self,
+static int system_ukct_lower_zone(struct cdc_zone_struct *self,
 				 struct cdc_zone_struct **next);
 
 
-static cdc_zone_t s_system_bst = 
+static cdc_zone_t s_system_ukct = 
   {
     NULL,
-    CDC_SYSTEM_BST,
-    bst_init,
+    CDC_SYSTEM_UKCT,
+    ukct_init,
     null_dispose,
     system_lower_diff,
-    system_bst_offset,
-    system_bst_op,
-    system_bst_aux,
-    system_bst_epoch,
-    system_bst_lower_zone
+    system_ukct_offset,
+    system_ukct_op,
+    system_ukct_aux,
+    system_ukct_epoch,
+    system_ukct_lower_zone
   };
 
 /* -------------------------- Rebase ------------------- */
@@ -562,8 +562,8 @@ int cdc_zone_new(int system,
     case CDC_SYSTEM_UTC:
       prototype = &s_system_utc;
       break;
-    case CDC_SYSTEM_BST:
-      prototype = &s_system_bst;
+    case CDC_SYSTEM_UKCT:
+      prototype = &s_system_ukct;
       break;
     case CDC_SYSTEM_REBASED:
       prototype = &s_system_rebased;
@@ -661,7 +661,7 @@ int cdc_utcplus_new(cdc_zone_t **ozone, int offset)
   return rv;
 }
 
-int cdc_bst_new(cdc_zone_t **ozone)
+int cdc_ukct_new(cdc_zone_t **ozone)
 {
   int rv;
   cdc_zone_t *z = NULL;
@@ -669,7 +669,7 @@ int cdc_bst_new(cdc_zone_t **ozone)
   rv = cdc_utc_new(&z);
   if (rv) { return rv; }
 
-  rv = cdc_zone_new(CDC_SYSTEM_BST, ozone, 0, z);
+  rv = cdc_zone_new(CDC_SYSTEM_UKCT, ozone, 0, z);
   if (rv) 
     {
       z->dispose(z);
@@ -882,8 +882,8 @@ const char *cdc_describe_system(const int sys)
     case CDC_SYSTEM_OFFSET:
       sprintf(buf, "OFF%s", modifier);
       break;
-    case CDC_SYSTEM_BST:
-      sprintf(buf, "BST%s", modifier);
+    case CDC_SYSTEM_UKCT:
+      sprintf(buf, "UK%s", modifier);
       break;
     case (CDC_SYSTEM_REBASED & ~CDC_SYSTEM_TAINTED):
       sprintf(buf, "REBASED%s", modifier);
@@ -934,9 +934,9 @@ int cdc_undescribe_system(unsigned int *out, const char *in_sys)
     {
         out_sys = CDC_SYSTEM_UTC;
     }
-    else if (!strncmp(in_sys, "BST", 3))
+    else if (!strncmp(in_sys, "UK", 3))
     {
-        out_sys = CDC_SYSTEM_BST;
+        out_sys = CDC_SYSTEM_UKCT;
     }
     else if (!strncmp(in_sys, "UNK", 3) || !strncmp(in_sys, "UNKNOWN", 7))
     {
@@ -2100,7 +2100,7 @@ static const char *dbg_pdate(const cdc_calendar_t *cal)
 }
 #endif
 
-/* ----------------------------- BST ------------------- */
+/* ---------------- British Summer Time ------------------- */
 
 
 /* BST: Applied to any other time zone.
@@ -2114,7 +2114,7 @@ static const char *dbg_pdate(const cdc_calendar_t *cal)
 static int is_bst(struct cdc_zone_struct *z, const  cdc_calendar_t *cal);
 
 
-static int bst_init(struct cdc_zone_struct *self,
+static int ukct_init(struct cdc_zone_struct *self,
 	     int iarg, void *parg)
 {
   self->handle = parg;
@@ -2122,7 +2122,7 @@ static int bst_init(struct cdc_zone_struct *self,
 }
 
 
-static int system_bst_offset(struct cdc_zone_struct *self,
+static int system_ukct_offset(struct cdc_zone_struct *self,
 			     cdc_calendar_t *offset,
 			     const cdc_calendar_t *src)
 {
@@ -2133,7 +2133,7 @@ static int system_bst_offset(struct cdc_zone_struct *self,
   
 
 #if DEBUG_BST
-  printf("system_bst_offset:  %s is_bst? %d \n",
+  printf("system_ukct_offset:  %s is_bst? %d \n",
 	 dbg_pdate(src), bst);
 #endif
 
@@ -2147,7 +2147,7 @@ static int system_bst_offset(struct cdc_zone_struct *self,
   return 0;
 }
 
-static int system_bst_op(struct cdc_zone_struct *self,
+static int system_ukct_op(struct cdc_zone_struct *self,
 			 cdc_calendar_t *dest,
 			 const cdc_calendar_t *src,
 			 const cdc_calendar_t *offset,
@@ -2158,7 +2158,7 @@ static int system_bst_op(struct cdc_zone_struct *self,
   int rv;
 
 #if DEBUG_BST
-  printf("bst_op: src = %s \n", dbg_pdate(src));
+  printf("ukct_op: src = %s \n", dbg_pdate(src));
 #endif
 
   rv = self->offset(self, &diff, src);
@@ -2171,7 +2171,7 @@ static int system_bst_op(struct cdc_zone_struct *self,
   srcx.system = utc->system;
   
 #if DEBUG_BST
-  printf("bst_op: initial src offset = %s \n", dbg_pdate(&diff));
+  printf("ukct_op: initial src offset = %s \n", dbg_pdate(&diff));
 #endif
 
 
@@ -2179,14 +2179,14 @@ static int system_bst_op(struct cdc_zone_struct *self,
   if (rv) { return rv; }
 
 #if DEBUG_BST
-  printf("bst_op: adj = %s \n", dbg_pdate(&adj));
+  printf("ukct_op: adj = %s \n", dbg_pdate(&adj));
 #endif
 
   // Now we're in UTC.
   adj.system = utc->system;
 
 #if DEBUG_BST
-  printf("bst_op: -------- before utc->op ---- \n");
+  printf("ukct_op: -------- before utc->op ---- \n");
 #endif
 
 
@@ -2194,14 +2194,14 @@ static int system_bst_op(struct cdc_zone_struct *self,
   if (rv) { return rv; }
 
 #if DEBUG_BST
-  printf("bst_op: ------- after utc->op ----\n");
+  printf("ukct_op: ------- after utc->op ----\n");
 #endif
   
   rv = self->offset(self, &diff, &tgt);
   if (rv) { return rv; }
 #if DEBUG_BST
-  printf("bst_op: initial tgt = %s \n", dbg_pdate(&tgt));
-  printf("bst_op: initial tgt offset = %s \n", dbg_pdate(&diff));
+  printf("ukct_op: initial tgt = %s \n", dbg_pdate(&tgt));
+  printf("ukct_op: initial tgt offset = %s \n", dbg_pdate(&diff));
 #endif
 
   // Luckily we need not think about this too hard as leap seconds
@@ -2219,13 +2219,13 @@ static int system_bst_op(struct cdc_zone_struct *self,
   dest->system = self->system;
 
 #if DEBUG_BST
-  printf("bst_op: dest = %s \n", dbg_pdate(dest));
+  printf("ukct_op: dest = %s \n", dbg_pdate(dest));
 #endif
 
   return 0;
 }
 
-static int system_bst_aux(struct cdc_zone_struct *self,
+static int system_ukct_aux(struct cdc_zone_struct *self,
 			  const cdc_calendar_t *calc,
 			  cdc_calendar_aux_t *aux)
 {
@@ -2240,7 +2240,7 @@ static int system_bst_aux(struct cdc_zone_struct *self,
   return 0;
 }
 
-static int system_bst_epoch(struct cdc_zone_struct *self,
+static int system_ukct_epoch(struct cdc_zone_struct *self,
 			    cdc_calendar_t *aux)
 {
   cdc_zone_t *utc = (cdc_zone_t *)self->handle;
@@ -2248,7 +2248,7 @@ static int system_bst_epoch(struct cdc_zone_struct *self,
   return utc->epoch(utc, aux);
 }
 
-static int system_bst_lower_zone(struct cdc_zone_struct *self,
+static int system_ukct_lower_zone(struct cdc_zone_struct *self,
 				 struct cdc_zone_struct **next)
 {
   (*next) = (struct cdc_zone_struct *)self->handle;
@@ -2312,7 +2312,7 @@ static int is_bst(struct cdc_zone_struct *utc, const cdc_calendar_t *cal)
 
 	      return is_march;
 	    }
-	  if (cal->system == CDC_SYSTEM_BST && cal->hour >= 2)
+	  if (cal->system == CDC_SYSTEM_UKCT && cal->hour >= 2)
 	    {
 #if DEBUG_BST
 	      printf("  -> After BST 0200: BST has turned on/off.\n");

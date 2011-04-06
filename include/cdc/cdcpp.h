@@ -32,7 +32,7 @@ namespace cdc
         static const uint32_t kInvalid = -1;
         static const uint32_t kGregorianTAI = 0;
         static const uint32_t kUTC = 2;
-        static const uint32_t kBST = 3;
+        static const uint32_t kUKCT = 3;
         static const uint32_t kOffset = 4;
         static const uint32_t kLowest = 5;
 
@@ -217,8 +217,8 @@ namespace cdc
         /** Create a UTC -plus zone, offset in minutes. */
         static std::auto_ptr<ZoneHandleT> UTCPlus(const int offset);
 
-        /** Create a new BST zone */
-        static std::auto_ptr<ZoneHandleT> BST();
+        /** Create a new UKCT zone */
+        static std::auto_ptr<ZoneHandleT> UKCT();
 
         /** Note that the rebased zone DOES NOT take ownership of the zone it's
          *  based on - you must delete both!
@@ -236,7 +236,7 @@ namespace cdc
          * And you will get back a timezone that maps that time in
          *  TAI to that time in the human zone.
          *
-         * If the machine zone is a BST-style zone, we'll take account
+         * If the machine zone is a UKCT-style zone, we'll take account
          *  of this.
          */
         static std::auto_ptr<ZoneHandleT> CreateRebasedTAI(ZoneHandleT *humanZone,

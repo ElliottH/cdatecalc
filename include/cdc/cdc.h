@@ -93,8 +93,9 @@ extern "C" {
 /** UTC */
 #define CDC_SYSTEM_UTC               2
 
-/** BST */
-#define CDC_SYSTEM_BST               3
+/** UK Civil ("wall clock") time. GMT in winter, BST in summer, or (where
+ * relevant) British Standard Time, British Double Summer Time, etc. */
+#define CDC_SYSTEM_UKCT              3
 
 /** UTC plus an offset of 0 (-1200) to 1440 (+1200) */
 #define CDC_SYSTEM_UTCPLUS_BASE           0x1000
@@ -114,15 +115,15 @@ extern "C" {
 
 /** rebased: this allows you to add or subtract a fixed calendar_t
  *  from a time system. It's typically used to translate a computer
- *  time system to a real time system like BST:
+ *  time system to a real time system like UKCT:
  *
  *   - Computer times are measured in GREGORIAN_TAI
- *   - Human times are measured in BST.
+ *   - Human times are measured in UKCT.
  *   - Construct a scale CDC_SYSTEM_REBASED + offset, 
  *     giving the offset between a human time lowered to
  *     TAI and a computer time.
  *   - Now, when you read a computer time put it in 
- *     REBASED, lower to TAI and raise to BST.
+ *     REBASED, lower to TAI and raise to UKCT.
  *
  * cdc_rebased_tai() and cdc_bounce() give some support
  *  for this model.
@@ -546,7 +547,7 @@ int cdc_utc_new(cdc_zone_t **ozone);
 int cdc_tai_new(cdc_zone_t **ozone);
 
 int cdc_utcplus_new(cdc_zone_t **ozone, int offset);
-int cdc_bst_new(cdc_zone_t **ozone);
+int cdc_ukct_new(cdc_zone_t **ozone); // SYSTEM_UKCT
 
 /** The rebased zone DOES NOT take ownership of the zone it's based on */
 int cdc_rebased_new(cdc_zone_t **ozone, 

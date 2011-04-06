@@ -39,10 +39,10 @@ int main(int argn, char *args[])
 
     try
     {
-        aZone = cdc::ZoneHandleT::BST();
+        aZone = cdc::ZoneHandleT::UKCT();
         cdc::CalendarTimeT aCalTime
             (2001,8, 20, 18, 00, 00, 0, 
-             cdc::System::kBST, 0), 
+             cdc::System::kUKCT, 0), 
             anIncTime;
         
         anIncTime.SetTime(1, 0, 0, 0);
@@ -59,9 +59,9 @@ int main(int argn, char *args[])
         tgtZone.reset(ptr); ptr = NULL;
         std::cout << "In UTC = " << utc << std::endl;
         
-        cdc::CalendarTimeT backInBST
+        cdc::CalendarTimeT backInUKCT
             (cdc::Raise(aZone.get(), utc));
-        std::cout << " Back in BST = " << backInBST << std::endl;
+        std::cout << " Back in UKCT = " << backInUKCT << std::endl;
         
         
         
