@@ -2602,5 +2602,26 @@ int cdc_rebased_tai(struct cdc_zone_struct **dst,
   return rv;
 }
 
+// WARNING: This is a semi-clone of ZoneHandleT::FromSystem() in cdcpp.
+// If you change this, you must make a matching change in the other.
+int cdc_zone_from_system(cdc_zone_t **zone_o, uint32_t inSystem)
+{
+    if (inSystem > CDC_SYSTEM_UTCPLUS_BASE) {
+        int offset = inSystem - CDC_SYSTEM_UTCPLUS_ZERO;
+        return cdc_utcplus_new(zone_o, offset);
+    }
+    switch (inSystem) {
+        case CDC_SYSTEM_GREGORIAN_TAI:
+            return cdc_tai_new(zone_o);
+        case CDC_SYSTEM_UTC:
+            return cdc_utc_new(zone_o);
+        case CDC_SYSTEM_UKCT:
+            return cdc_ukct_new(zone_o);
+        // More cases go here.
+        default:
+            return CDC_ERR_BAD_SYSTEM;
+    }
+}
+
 
 /* End file */

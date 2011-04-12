@@ -395,6 +395,9 @@ namespace cdc
         return std::auto_ptr<ZoneHandleT>(zh);
     }
 
+    // WARNING: This code has a semi-clone in the form of
+    // cdc_zone_from_system() in cdc.
+    // If you change this, you must make a matching change in the other.
     std::auto_ptr<ZoneHandleT> ZoneHandleT::FromSystem(uint32_t inSystem)
     {
 

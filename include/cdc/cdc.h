@@ -525,7 +525,10 @@ int cdc_zone_lower_to(cdc_zone_t *zone,
 			   int to_system);
 
 
-/** Retrieve a timezone for a given zone code 
+/** Creates a raw zone for a given zone code.
+ * This DOES NOT set up the chain of zones that enables raising and
+ * lowering; that's the job of higher-level code (cdc_tai_new and friends,
+ * and cdc_zone new).
  *
  * @return 0 on success, < 0 on failure, 0 with 
  *          result == NULL for 'couldn't find it' 
@@ -534,6 +537,12 @@ int cdc_zone_new(int system,
 		      cdc_zone_t **out_zone,
 		      int i,
 		      void *n);
+
+/** 
+ * Completely instantiates a zone for a given system.
+ */
+int cdc_zone_from_system(cdc_zone_t **zone_o, uint32_t inSystem);
+
 
 /** Dispose of a zone */
 int cdc_zone_dispose(cdc_zone_t **io_zone);
