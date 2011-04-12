@@ -2285,14 +2285,14 @@ static int is_bst(struct cdc_zone_struct *utc, const cdc_calendar_t *cal)
       // Luckily, March and October both have 31 days .. 
 
 
-      if (cal->mday < (31-7))
-	{
-	  // There must be a sunday to come
+      if (cal->mday <= (31-7)) {
+	  // At most the 24th of the month, there are (at least) seven clear
+      // days to come - so there must be a Sunday to come.
 #if DEBUG_BST
 	  printf("  -> There must be a sunday to come.\n");
 #endif
 
-	  return is_march;
+	  return !is_march;
 	}
       
       cdc_calendar_aux_t aux;
@@ -2334,6 +2334,7 @@ static int is_bst(struct cdc_zone_struct *utc, const cdc_calendar_t *cal)
 #endif
 
       // Is there going to be a Sunday?
+      // How many days until the next Sunday, and how many are left this month?
       if ((7-aux.wday) <= (31-cal->mday))
 	{
 	  // Yes.
