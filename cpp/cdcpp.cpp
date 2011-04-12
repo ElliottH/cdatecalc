@@ -405,9 +405,8 @@ namespace cdc
         {
             int offset = (inSystem - System::kUTCPlusBase) - (12*60);
             if (offset < -720 || offset > 1440)
-            {
-                return UTCPlus(offset);
-            }
+                throw ErrorExceptionT(Error::BadSystem);
+            return UTCPlus(offset);
         }
 
         switch (inSystem)
