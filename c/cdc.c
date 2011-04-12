@@ -2161,8 +2161,14 @@ static int system_ukct_op(struct cdc_zone_struct *self,
   printf("ukct_op: src = %s \n", dbg_pdate(src));
 #endif
 
-  rv = self->offset(self, &diff, src);
-  if (rv) { return rv; }
+  if (op == CDC_OP_ZONE_ADD)
+      // Then we shouldn't be worrying about zone offsets.
+      // Indeed we might be adding one ourselves...
+      memset(&diff, 0, sizeof(diff));
+  else {
+      rv = self->offset(self, &diff, src);
+      if (rv) { return rv; }
+  }
 
   // We're actually going backward here, so ..
   cdc_negate(&diff);
@@ -2197,8 +2203,10 @@ static int system_ukct_op(struct cdc_zone_struct *self,
   printf("ukct_op: ------- after utc->op ----\n");
 #endif
   
-  rv = self->offset(self, &diff, &tgt);
-  if (rv) { return rv; }
+  if (op != CDC_OP_ZONE_ADD) {
+      rv = self->offset(self, &diff, &tgt);
+      if (rv) { return rv; }
+  }
 #if DEBUG_BST
   printf("ukct_op: initial tgt = %s \n", dbg_pdate(&tgt));
   printf("ukct_op: initial tgt offset = %s \n", dbg_pdate(&diff));
