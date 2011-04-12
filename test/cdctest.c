@@ -1322,9 +1322,11 @@ static int cdc_test_bounce(void)
     printf("------------\n");
     {
       // .. and now ahead by an hour because we've landed in BST.
+      // Let's really work the code here and make it land only just
+      // inside the BST window.
       static cdc_calendar_t a = 
-	{ 2010, CDC_OCTOBER, 5, 15, 00, 00, 0, CDC_SYSTEM_REBASED };
-      static const char *result = "2012-03-08 03:23:04.000000000 UK";
+	{ 2010, CDC_OCTOBER, 22, 14, 00, 00, 0, CDC_SYSTEM_REBASED };
+      static const char *result = "2012-03-25 02:23:04.000000000 UK";
 
       rv = cdc_bounce(offset, bst, &tgt, &a);
       ASSERT_INTEGERS_EQUAL(0, rv, "Cannot bounce time [2]");
