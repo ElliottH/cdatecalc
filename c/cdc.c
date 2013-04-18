@@ -277,6 +277,10 @@ static utc_lookup_entry_t utc_lookup_table[] =
 
     { { 2008, CDC_DECEMBER, 31, 23, 59, 59, 0, CDC_SYSTEM_UTC },
       { -34, 0 }
+    },
+
+    { { 2012, CDC_JUNE, 30, 23, 59, 59, 0, CDC_SYSTEM_UTC },
+      { -35, 0 }
     }
   };
      
