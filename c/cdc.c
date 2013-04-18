@@ -1307,15 +1307,16 @@ static int system_gtai_diff(struct cdc_zone_struct *self,
   {
     int cur = before->month;
     int curday = before->mday;
-    int curdays;
     int last = after->month;
     int lastday = after->mday;
     int is_leap = is_gregorian_leap_year(before->year);
     int curyear = before->year;
     int lastyear = after->year;
 
+    /*
     curdays = gregorian_months[cur] + 
       ((is_leap && cur == CDC_FEBRUARY) ? 1 : 0);
+     */
 
     while (1)
       {
