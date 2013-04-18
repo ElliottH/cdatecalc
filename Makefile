@@ -30,7 +30,7 @@ all: dirs $(BIN_DIR)/cdctest $(LIB_DIR)/libcdc.so $(LIB_DIR)/libcdcpp.so $(BIN_D
 $(BIN_DIR)/cdctest: $(LIB_DIR)/libcdc.so $(C_OBJ_DIR)/cdctest.o
 	$(CC) -o $@ $(CFLAGS) $(C_OBJ_DIR)/cdctest.o $(LDFLAGS) -lcdc
 
-$(BIN_DIR)/cdcpptest: $(LIB_DIR)/libcdc.so $(CPP_OBJ_DIR)/cdcpptest.o
+$(BIN_DIR)/cdcpptest: $(LIB_DIR)/libcdcpp.so $(CPP_OBJ_DIR)/cdcpptest.o
 	$(CXX) -o $@ $(CFLAGS) $(CPP_OBJ_DIR)/cdcpptest.o $(LDFLAGS) -lcdcpp 
 
 
