@@ -33,6 +33,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __GNUC__
+#define WARN_UNUSED __attribute__ (( warn_unused_result ))
+#else
+#define WARN_UNUSED
+#endif
+
 #define ASSERT_INTERVALS_EQUAL(x,y,s)		\
   if (cdc_interval_cmp((x),(y))) { return faili((x),(y),"Intervals not equal",\
 					 (s),__FILE__,__LINE__, __func__); }  
@@ -47,16 +53,19 @@
 				    (s), __FILE__, __LINE__, __func__); }
 
 
+WARN_UNUSED
 static int failint(int x, int y,
 		    const char *leg1, const char *leg2,
 		    const char *file, const int line,
 		    const char *func);
 
+WARN_UNUSED
 static int failstring(const char *x, const char *y,
 		    const char *leg1, const char *leg2,
 		    const char *file, const int line,
 		    const char *func);
 
+WARN_UNUSED
 static int faili(const cdc_interval_t *a, 
 		  const cdc_interval_t *b,
 		  const char *leg1,
@@ -65,18 +74,29 @@ static int faili(const cdc_interval_t *a,
 		  const int line,
 		  const char *func);
 
+WARN_UNUSED
 static int cdc_test_gtai(void);
+WARN_UNUSED
 static int cdc_test_interval(void);
+WARN_UNUSED
 static int cdc_test_calendar(void);
+WARN_UNUSED
 static int cdc_test_utc(void);
+WARN_UNUSED
 static int cdc_test_utcplus(void);
+WARN_UNUSED
 static int cdc_test_bst(void);
+WARN_UNUSED
 static int cdc_test_rebased(void);
+WARN_UNUSED
 static int cdc_test_bounce(void);
+WARN_UNUSED
 static int cdc_test_parse(void);
 
 /* Test interval - date arithmetic bugs found whilst developing RAW */
+WARN_UNUSED
 static int cdc_test_date_arith(void);
+WARN_UNUSED
 static int cdc_test_date_arith_2(void);
 
 
@@ -137,7 +157,7 @@ int cdc_test_function(int argn, char *args[])
   return 0;
 }
 
-
+WARN_UNUSED
 static int cdc_test_reflexivity(unsigned int sys, const char *correct_description)
 {
     char buf[256], buf2[256];
@@ -158,6 +178,7 @@ static int cdc_test_reflexivity(unsigned int sys, const char *correct_descriptio
     return 0;
 }
 
+WARN_UNUSED
 static int cdc_test_interval_parse(const cdc_interval_t *ival, const char *correct_description)
 {
     char buf[256], buf2[256];
@@ -183,6 +204,7 @@ static int cdc_test_interval_parse(const cdc_interval_t *ival, const char *corre
     return 0;
 }
 
+WARN_UNUSED
 static int cdc_test_calendar_parse(const cdc_calendar_t *cal, const char *correct_description)
 {
     char buf[256], buf2[256];
@@ -216,45 +238,46 @@ static int cdc_test_calendar_parse(const cdc_calendar_t *cal, const char *correc
 
 static int cdc_test_parse(void)
 {
+    int rv = 0;
     // Test some systems .. 
-    cdc_test_reflexivity(CDC_SYSTEM_UTC, "UTC");    
-    cdc_test_reflexivity(CDC_SYSTEM_UKCT, "UK");    
-    cdc_test_reflexivity(CDC_SYSTEM_GREGORIAN_TAI, "TAI");    
+    DO_TEST(cdc_test_reflexivity(CDC_SYSTEM_UTC, "UTC"));
+    DO_TEST(cdc_test_reflexivity(CDC_SYSTEM_UKCT, "UK"));
+    DO_TEST(cdc_test_reflexivity(CDC_SYSTEM_GREGORIAN_TAI, "TAI"));
 
-    cdc_test_reflexivity(CDC_SYSTEM_UTCPLUS_ZERO, "UTC+0000");
-    cdc_test_reflexivity(CDC_SYSTEM_UTCPLUS_ZERO - (120 + 4), 
-                         "UTC-0204");
+    DO_TEST(cdc_test_reflexivity(CDC_SYSTEM_UTCPLUS_ZERO, "UTC+0000"));
+    DO_TEST(cdc_test_reflexivity(CDC_SYSTEM_UTCPLUS_ZERO - (120 + 4),
+                         "UTC-0204"));
 
-    cdc_test_reflexivity((CDC_SYSTEM_UTCPLUS_ZERO + (60 + 23)) | 
+    DO_TEST(cdc_test_reflexivity((CDC_SYSTEM_UTCPLUS_ZERO + (60 + 23)) |
                          CDC_SYSTEM_TAINTED,
-                         "UTC+0123*");
+                         "UTC+0123*"));
 
     // Now check interval parsing.
     {
         const static cdc_interval_t ia = { 0, 0 };
-        cdc_test_interval_parse(&ia, "0 s 0 ns");
+        DO_TEST(cdc_test_interval_parse(&ia, "0 s 0 ns"));
     }
 
     {
         const static cdc_interval_t ia = { 23, 4502 };
-        cdc_test_interval_parse(&ia, "23 s 4502 ns");
+        DO_TEST(cdc_test_interval_parse(&ia, "23 s 4502 ns"));
     }
 
     {
         const static cdc_interval_t ia = { 2329043, -2894219 };
-        cdc_test_interval_parse(&ia, "2329043 s -2894219 ns");
+        DO_TEST(cdc_test_interval_parse(&ia, "2329043 s -2894219 ns"));
     }
     
     {
         const static cdc_calendar_t t1 = 
             { 1990, 0, 1, 0, 0, 0, 0, CDC_SYSTEM_GREGORIAN_TAI };
-        cdc_test_calendar_parse(&t1, "1990-01-01 00:00:00.000000000 TAI");
+        DO_TEST(cdc_test_calendar_parse(&t1, "1990-01-01 00:00:00.000000000 TAI"));
     }
     
     {
         const static cdc_calendar_t t2 =
             { 2001, 2, 23, 23, 59, 60 , -2428509, CDC_SYSTEM_UKCT };
-        cdc_test_calendar_parse(&t2, "2001-03-23 23:59:60.-02428509 UK");
+        DO_TEST(cdc_test_calendar_parse(&t2, "2001-03-23 23:59:60.-02428509 UK"));
     }
         
 
