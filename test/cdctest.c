@@ -110,16 +110,6 @@ int cdc_test_function(int argn, char *args[])
 {
   int rv;
 
-
-
-  if (argn != 2)
-    {
-      fprintf(stderr, "Syntax: tctest [seed]\n");
-      exit(1);
-    }
-  int seed = atoi(args[1]);
-  printf("> Using seed = %d \n", seed);
-
   printf("--- Date Arithmetic 2 \n");
   DO_TEST(cdc_test_date_arith_2());
 
